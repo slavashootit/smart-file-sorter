@@ -1,0 +1,2 @@
+pywebview>=4.0.0
+pyobjc>=9.0.0; sys_platform == 'darwin'
