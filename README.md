@@ -3,7 +3,7 @@
 Преміальний настільний додаток для швидкого та безпечного впорядкування файлів у вашій системі з сучасним інтерфейсом у стилі **glassmorphism** (ефект матового скла) та динамічною підсвіткою.
 
 <p align="center">
-  <a href="https://github.com/slavashootit/smart-file-sorter/releases/download/v1.3.0/Сортувальник_файлів_macOS.dmg">
+  <a href="https://github.com/slavashootit/smart-file-sorter/releases/download/v1.3.0/Smart_File_Sorter_macOS.dmg">
     <img src="https://img.shields.io/badge/Завантажити_DMG-macOS-007AFF?style=for-the-badge&logo=apple&logoColor=white" alt="Завантажити для macOS" height="40" />
   </a>
 </p>
@@ -29,7 +29,7 @@
 ## 🚀 Як встановити та запустити (для macOS)
 
 ### Варіант 1: Завантаження готового додатка (Рекомендовано)
-1. Завантажте файл **[Сортувальник_файлів_macOS.dmg](https://github.com/slavashootit/smart-file-sorter/releases/download/v1.3.0/Сортувальник_файлів_macOS.dmg)**.
+1. Завантажте файл **[Smart_File_Sorter_macOS.dmg](https://github.com/slavashootit/smart-file-sorter/releases/download/v1.3.0/Smart_File_Sorter_macOS.dmg)**.
 2. Двічі клацніть на завантажений файл `.dmg`, щоб змонтувати диск.
 3. Перетягніть додаток **`Сортувальник файлів`** у ярлик **`Applications`** (Програми) у вікні, що відкрилося.
 4. Запустіть додаток через Launchpad або папку «Програми».
