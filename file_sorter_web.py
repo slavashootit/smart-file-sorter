@@ -341,8 +341,11 @@ class Api:
 
 def setup_mac_app_identity():
     try:
-        from AppKit import NSApplication, NSImage
+        from AppKit import NSApplication, NSImage, NSApplicationActivationPolicyAccessory
         shared_app = NSApplication.sharedApplication()
+        # Hide the Python dock icon so it doesn't appear as a duplicate
+        shared_app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+        
         icon_path = Path(__file__).parent / "web_ui" / "app_icon.png"
         if icon_path.exists():
             image = NSImage.alloc().initWithContentsOfFile_(str(icon_path))
