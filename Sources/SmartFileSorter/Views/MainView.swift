@@ -44,33 +44,52 @@ struct MainView: View {
                         NavigationLink(value: "sort") {
                             Label("Сортування", systemImage: "folder.badge.gearshape")
                         }
+                        .help("Автоматичне сортування файлів у папці за типом або датою")
+                        
                         NavigationLink(value: "diskMap") {
                             Label("Аналізатор диска", systemImage: "chart.pie")
                         }
+                        .help("Візуальна карта використання диска — знайдіть найбільші папки")
+                        
                         NavigationLink(value: "duplicates") {
                             Label("Дублікати", systemImage: "doc.on.doc")
                         }
+                        .help("Пошук і видалення дублікатів файлів за хешем вмісту")
+                        
                         NavigationLink(value: "similar") {
                             Label("Схожі фото", systemImage: "photo.on.rectangle.angled")
                         }
+                        .help("Знаходить візуально схожі фотографії за допомогою Apple Vision AI")
+                        
                         NavigationLink(value: "semantic") {
                             Label("Семантичний пошук", systemImage: "sparkles")
                         }
+                        .help("Пошук фотографій за текстовим описом (англ.) — Vision AI розпізнає об'єкти")
+                        
                         NavigationLink(value: "cleanup") {
                             Label("Очищення", systemImage: "trash")
                         }
+                        .help("Великі файли, старі завантаження, порожні папки та керування Смітником")
+                        
                         NavigationLink(value: "templates") {
                             Label(NSLocalizedString("automationTemplates", comment: ""), systemImage: "square.grid.3x3")
                         }
+                        .help("Готові шаблони правил автоматичного сортування для швидкого старту")
+                        
                         NavigationLink(value: "analytics") {
                             Label("Аналітика", systemImage: "chart.xyaxis.line")
                         }
+                        .help("Статистика сортувань, звільненого простору та активності за часом")
+                        
                         NavigationLink(value: "settings") {
                             Label("Налаштування", systemImage: "gearshape")
                         }
+                        .help("Розклад автосортування, звукові ефекти та системні параметри")
+                        
                         NavigationLink(value: "about") {
                             Label("Про програму", systemImage: "info.circle")
                         }
+                        .help("Версія додатку, посилання на GitHub та інформація про розробника")
                     }
                 }
                 .listStyle(.sidebar)
