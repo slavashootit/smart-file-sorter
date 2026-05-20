@@ -201,19 +201,62 @@ class Api:
         target_path = Path(folder_path)
         action_word = "Попередній перегляд" if dry_run else "Сортування"
         
-        # Шукаємо файли
+        # Виключені папки (категорії, дати та службові)
+        excluded_names = {"Відео", "Зображення", "Документи", "Аудіо", "Архіви", "Дублікати", "Інші файли"}
+        def is_excluded_dir(path):
+            if path.name in excluded_names:
+                return True
+            if path.name.isdigit() and len(path.name) == 4:
+                return True
+            return False
+
+        def get_directory_category_and_files(dir_path):
+            # Рекурсивно знаходимо всі файли в підпапці
+            all_files = []
+            for root, _, filenames in os.walk(dir_path):
+                for fname in filenames:
+                    if fname.startswith('.'):
+                        continue
+                    all_files.append(Path(root) / fname)
+            
+            if not all_files:
+                return None, [] # Порожня папка
+                
+            first_cat = None
+            for file_path in all_files:
+                ext = file_path.suffix.lower()
+                cat = "Інші файли"
+                for c, extensions in FILE_CATEGORIES.items():
+                    if ext in extensions:
+                        cat = c
+                        break
+                
+                if first_cat is None:
+                    first_cat = cat
+                elif first_cat != cat:
+                    return "mixed", all_files # Змішана папка
+                    
+            return first_cat, all_files # Чиста папка певної категорії
+        
+        # Шукаємо файли та підпапки у корені
         files_to_sort = []
+        dirs_to_sort = []
         try:
             for item in target_path.iterdir():
-                if item.is_file() and not item.name.startswith('.'):
+                if item.name.startswith('.'):
+                    continue
+                if item.is_file():
                     files_to_sort.append(item)
+                elif item.is_dir() and not is_excluded_dir(item):
+                    dirs_to_sort.append(item)
             # Сортуємо алфавітно за назвою для стабільного порядку обробки
             files_to_sort.sort(key=lambda x: x.name.lower())
+            dirs_to_sort.sort(key=lambda x: x.name.lower())
         except Exception as e:
             return {"error": f"Не вдалося отримати доступ до папки: {e}"}
             
-        if not files_to_sort:
-            logs.append("У цій папці немає файлів для сортування.")
+        if not files_to_sort and not dirs_to_sort:
+            logs.append("У цій папці немає файлів чи підпапок для сортування.")
             logs.append("--- Процес завершено ---")
             return {"logs": logs, "has_history": self.check_history_exists()}
             
@@ -244,6 +287,68 @@ class Api:
                     if p_str not in history["created_dirs"]:
                         history["created_dirs"].append(p_str)
 
+        # Спочатку сортуємо чисті підпапки
+        for dir_path in dirs_to_sort:
+            cat, dir_files = get_directory_category_and_files(dir_path)
+            
+            if cat == "mixed":
+                ignored_count += 1
+                logs.append(f"[ПРОПУЩЕНО] Папка '{dir_path.name}' містить змішані файли (не сортуємо)")
+                continue
+            elif cat is None:
+                ignored_count += 1
+                logs.append(f"[ПРОПУЩЕНО] Папка '{dir_path.name}' порожня")
+                continue
+                
+            # Чиста папка - перевіряємо, чи увімкнено її категорію
+            if not categories.get(cat, True):
+                ignored_count += 1
+                continue
+                
+            # Отримуємо цільову папку для папки
+            if sort_mode == "type":
+                dest_folder = target_path / cat
+            elif sort_mode == "date":
+                # Визначаємо дату за найновішим файлом у цій папці
+                newest_file = max(dir_files, key=lambda f: f.stat().st_mtime)
+                stat = newest_file.stat()
+                file_time = datetime.fromtimestamp(stat.st_mtime)
+                year = str(file_time.year)
+                month_num = file_time.month
+                month_name = MONTHS_UA[month_num]
+                folder_name = f"{year}-{month_num:02d}_{month_name}"
+                dest_folder = target_path / year / folder_name
+            else:
+                dest_folder = None
+                
+            if dest_folder is None:
+                ignored_count += 1
+                continue
+                
+            if dir_path.parent == dest_folder:
+                continue
+                
+            dest_dir_path = self.unique_dest_path(dest_folder, dir_path)
+            rel_dest = dest_dir_path.relative_to(target_path)
+            
+            if dry_run:
+                logs.append(f"[ПЛАНУЄТЬСЯ] Папку '{dir_path.name}' (тільки {cat.lower()}) -> в '{rel_dest}'")
+            else:
+                try:
+                    record_dir_creation(dest_folder)
+                    dest_folder.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(dir_path), str(dest_dir_path))
+                    logs.append(f"[УСПІШНО] Папку '{dir_path.name}' -> перенесено в '{rel_dest}'")
+                    history["moves"].append({
+                        "original": str(dir_path),
+                        "new": str(dest_dir_path)
+                    })
+                except Exception as e:
+                    logs.append(f"[ПОМИЛКА] Не вдалося перемістити папку '{dir_path.name}': {e}")
+                    
+            moved_count += 1
+
+        # Далі сортуємо окремі файли в корені
         for file_path in files_to_sort:
             # Перевіряємо дублікати
             is_duplicate = False
@@ -281,7 +386,7 @@ class Api:
                 moved_count += 1
                 continue
 
-            # Звичайне сортування
+            # Звичайне сортування файлу
             dest_folder = self.get_destination_folder(file_path, target_path, sort_mode, categories)
             
             if dest_folder is None:
@@ -297,7 +402,7 @@ class Api:
             rel_dest = dest_file_path.relative_to(target_path)
             
             if dry_run:
-                logs.append(f"[ПЛАНУЄТЬСЯ] '{rel_source}' -> папку '{rel_dest.parent}'")
+                logs.append(f"[ПЛАНУЄТЬСЯ] '{rel_source}' -> в '{rel_dest.parent}'")
             else:
                 try:
                     record_dir_creation(dest_folder)
@@ -315,16 +420,16 @@ class Api:
             
         logs.append(f"\n--- {action_word} завершено ---")
         if dry_run:
-            logs.append(f"Буде впорядковано файлів: {moved_count}")
+            logs.append(f"Буде впорядковано об'єктів: {moved_count}")
             if detect_duplicates:
                 logs.append(f"З них дублікатів: {duplicate_count}")
-            logs.append(f"Проігноровано файлів: {ignored_count}")
+            logs.append(f"Проігноровано/пропущено: {ignored_count}")
             logs.append("Жодних змін на диску не було проведено.")
         else:
-            logs.append(f"Успішно впорядковано файлів: {moved_count}")
+            logs.append(f"Успішно впорядковано об'єктів: {moved_count}")
             if detect_duplicates:
                 logs.append(f"З них перенесено як дублікати: {duplicate_count}")
-            logs.append(f"Проігноровано файлів: {ignored_count}")
+            logs.append(f"Проігноровано/пропущено: {ignored_count}")
             
             # Зберігаємо історію
             if history["moves"]:
