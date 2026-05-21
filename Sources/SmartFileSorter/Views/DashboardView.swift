@@ -373,21 +373,20 @@ public struct DashboardView: View {
         panel.begin { response in
             if response == .OK, let url = panel.url {
                 var csvText = "\u{FEFF}" // Додаємо UTF-8 BOM для Microsoft Excel!
-                csvText += "Час,Профіль,Оригінальний шлях,Новий шлях,Розмір (Байт),Статус\n"
+                csvText += "Час,Оригінальний шлях,Новий шлях,Розмір (Байт),Статус\n"
                 
                 let formatter = DateFormatter()
                 formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
                 
                 for batch in historyManager.getBatches() {
                     let time = formatter.string(from: batch.timestamp)
-                    let profile = batch.profileName ?? "Home"
                     
                     for op in batch.operations {
                         let original = op.originalPath.replacingOccurrences(of: "\"", with: "\"\"")
                         let newPath = op.newPath.replacingOccurrences(of: "\"", with: "\"\"")
                         let status = op.isTrashed ? "Видалено дублікат" : "Впорядковано"
                         
-                        csvText += "\"\(time)\",\"\(profile)\",\"\(original)\",\"\(newPath)\",\(op.fileSize),\"\(status)\"\n"
+                        csvText += "\"\(time)\",\"\(original)\",\"\(newPath)\",\(op.fileSize),\"\(status)\"\n"
                     }
                 }
                 

@@ -22,15 +22,13 @@ public struct BatchRecord: Codable, Identifiable, Equatable {
     public var timestamp: Date
     public var operations: [BatchOperation]
     public var createdDirs: [String]
-    public var profileName: String?
     public var isCancelled: Bool
     
-    public init(id: UUID = UUID(), timestamp: Date = Date(), operations: [BatchOperation] = [], createdDirs: [String] = [], profileName: String? = nil, isCancelled: Bool = false) {
+    public init(id: UUID = UUID(), timestamp: Date = Date(), operations: [BatchOperation] = [], createdDirs: [String] = [], isCancelled: Bool = false) {
         self.id = id
         self.timestamp = timestamp
         self.operations = operations
         self.createdDirs = createdDirs
-        self.profileName = profileName
         self.isCancelled = isCancelled
     }
     
@@ -39,7 +37,6 @@ public struct BatchRecord: Codable, Identifiable, Equatable {
         case timestamp
         case operations
         case createdDirs
-        case profileName
         case isCancelled
     }
     
@@ -56,7 +53,6 @@ public struct BatchRecord: Codable, Identifiable, Equatable {
         
         self.operations = try container.decode([BatchOperation].self, forKey: .operations)
         self.createdDirs = try container.decode([String].self, forKey: .createdDirs)
-        self.profileName = try container.decodeIfPresent(String.self, forKey: .profileName)
         self.isCancelled = try container.decodeIfPresent(Bool.self, forKey: .isCancelled) ?? false
     }
 }
@@ -115,7 +111,6 @@ private final class SQLiteHistoryDatabase {
         CREATE TABLE IF NOT EXISTS batches (
             id TEXT PRIMARY KEY,
             timestamp REAL,
-            profile_name TEXT,
             is_cancelled INTEGER DEFAULT 0
         );
         """
@@ -147,10 +142,14 @@ private final class SQLiteHistoryDatabase {
         
         // v1.5.1 migration: drop legacy semantic search embeddings table if it exists
         try? execute(sql: "DROP TABLE IF EXISTS embeddings;")
+        
+        // v1.5.1 migration: drop profile_name column from batches table
+        // SQLite 3.35+ (macOS 12+) supports ALTER TABLE DROP COLUMN
+        try? execute(sql: "ALTER TABLE batches DROP COLUMN profile_name;")
     }
     
     func insertBatch(_ batch: BatchRecord) throws {
-        let insertBatchSQL = "INSERT INTO batches (id, timestamp, profile_name, is_cancelled) VALUES (?, ?, ?, ?);"
+        let insertBatchSQL = "INSERT INTO batches (id, timestamp, is_cancelled) VALUES (?, ?, ?);"
         var stmt: OpaquePointer?
         if sqlite3_prepare_v2(db, insertBatchSQL, -1, &stmt, nil) != SQLITE_OK {
             throw getLastError()
@@ -159,12 +158,7 @@ private final class SQLiteHistoryDatabase {
         
         sqlite3_bind_text(stmt, 1, batch.id.uuidString, -1, SQLITE_TRANSIENT)
         sqlite3_bind_double(stmt, 2, batch.timestamp.timeIntervalSince1970)
-        if let profile = batch.profileName {
-            sqlite3_bind_text(stmt, 3, profile, -1, SQLITE_TRANSIENT)
-        } else {
-            sqlite3_bind_null(stmt, 3)
-        }
-        sqlite3_bind_int(stmt, 4, batch.isCancelled ? 1 : 0)
+        sqlite3_bind_int(stmt, 3, batch.isCancelled ? 1 : 0)
         
         if sqlite3_step(stmt) != SQLITE_DONE {
             throw getLastError()
@@ -260,7 +254,7 @@ private final class SQLiteHistoryDatabase {
     func fetchBatches() throws -> [BatchRecord] {
         var batches: [BatchRecord] = []
         
-        let queryBatchesSQL = "SELECT id, timestamp, profile_name, is_cancelled FROM batches ORDER BY timestamp ASC;"
+        let queryBatchesSQL = "SELECT id, timestamp, is_cancelled FROM batches ORDER BY timestamp ASC;"
         var stmt: OpaquePointer?
         if sqlite3_prepare_v2(db, queryBatchesSQL, -1, &stmt, nil) != SQLITE_OK {
             throw getLastError()
@@ -273,10 +267,9 @@ private final class SQLiteHistoryDatabase {
                 continue
             }
             let timestamp = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 1))
-            let profileName = sqlite3_column_text(stmt, 2).map { String(cString: $0) }
-            let isCancelled = sqlite3_column_int(stmt, 3) != 0
+            let isCancelled = sqlite3_column_int(stmt, 2) != 0
             
-            batches.append(BatchRecord(id: id, timestamp: timestamp, operations: [], createdDirs: [], profileName: profileName, isCancelled: isCancelled))
+            batches.append(BatchRecord(id: id, timestamp: timestamp, operations: [], createdDirs: [], isCancelled: isCancelled))
         }
         
         for i in 0..<batches.count {
@@ -456,13 +449,11 @@ public class HistoryManager: ObservableObject {
                     }
                     
                     if !alreadyImported && !sessionOps.isEmpty {
-                        let activeProfile = "Home"
                         let batch = BatchRecord(
                             id: UUID(),
                             timestamp: Date(),
                             operations: sessionOps,
-                            createdDirs: session.created_dirs,
-                            profileName: activeProfile
+                            createdDirs: session.created_dirs
                         )
                         try db?.beginTransaction()
                         try db?.insertBatch(batch)

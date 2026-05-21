@@ -550,12 +550,10 @@ public class SorterEngine {
                             let isTrash = move.new.contains("/.Trash/") || move.new.contains("/Trash/")
                             return BatchOperation(originalPath: move.original, newPath: move.new, isTrashed: isTrash, fileSize: size)
                         }
-                        let activeProfile = "Home"
                         let batch = BatchRecord(
                             timestamp: Date(),
                             operations: batchOps,
                             createdDirs: history.created_dirs,
-                            profileName: activeProfile,
                             isCancelled: true
                         )
                         HistoryManager.shared.addBatch(batch)
@@ -583,12 +581,10 @@ public class SorterEngine {
                                 let isTrash = move.new.contains("/.Trash/") || move.new.contains("/Trash/")
                                 return BatchOperation(originalPath: move.original, newPath: move.new, isTrashed: isTrash, fileSize: size)
                             }
-                            let activeProfile = "Home"
                             let batch = BatchRecord(
                                 timestamp: Date(),
                                 operations: batchOps,
                                 createdDirs: history.created_dirs,
-                                profileName: activeProfile,
                                 isCancelled: false
                             )
                             HistoryManager.shared.addBatch(batch)

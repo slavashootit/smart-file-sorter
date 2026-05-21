@@ -69,8 +69,7 @@ public class WatcherViewModel: ObservableObject {
             let batch = BatchRecord(
                 timestamp: Date(),
                 operations: operations,
-                createdDirs: [],
-                profileName: "Watcher"
+                createdDirs: []
             )
             HistoryManager.shared.addBatch(batch)
             

@@ -53,8 +53,7 @@ public class ScheduleManager {
     public func runScheduledSorting(completion: @escaping () -> Void) {
         DispatchQueue.global(qos: .utility).async {
             let fileManager = FileManager.default
-            let activeProfile = "Home"
-            let watchedPaths = UserDefaults.standard.stringArray(forKey: "watcher_paths_\(activeProfile)") ?? []
+            let watchedPaths = UserDefaults.standard.stringArray(forKey: "watcher_paths") ?? []
             
             // Завантажуємо актуальні правила
             RuleEngine.shared.loadRules()
@@ -102,8 +101,7 @@ public class ScheduleManager {
                 let batch = BatchRecord(
                     timestamp: Date(),
                     operations: operations,
-                    createdDirs: [],
-                    profileName: "Scheduler (\(activeProfile))"
+                    createdDirs: []
                 )
                 HistoryManager.shared.addBatch(batch)
                 print("[SCHEDULER] Автоматично впорядковано за розкладом: \(sortedCount)")
