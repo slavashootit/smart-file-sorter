@@ -1,5 +1,7 @@
 # 📂 Розумний сортувальник файлів (Smart File Sorter)
 
+[![Завантажити останню версію для macOS](https://img.shields.io/badge/Завантажити-macOS-blue.svg?style=for-the-badge&logo=apple)](https://github.com/slavashootit/smart-file-sorter/releases/latest/download/SmartFileSorter.dmg)
+
 Преміальний настільний додаток для швидкого та безпечного впорядкування файлів у вашій системі з сучасним інтерфейсом у стилі **glassmorphism** (ефект матового скла) та динамічною підсвіткою.
 
 Починаючи з версії **v1.4 "Consolidation"**, додаток повністю переписано на **Swift та SwiftUI** для забезпечення максимальної продуктивності на macOS. Попередня версія на Python збережена в репозиторії як CLI-інструмент для автоматизації та резервного копіювання.
