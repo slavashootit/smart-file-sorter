@@ -265,44 +265,14 @@ public final class DuplicateFinder: ObservableObject {
     }
     
     private func getPass1Hash(url: URL) -> String? {
-        guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? fileHandle.close() }
-        
-        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? 0
-        let bufferSize = 4096
-        
-        var data = Data()
-        
-        // Читаємо початок
-        if let startData = try? fileHandle.read(upToCount: bufferSize) {
-            data.append(startData)
-        }
-        
-        // Читаємо кінець
-        if size > UInt64(bufferSize) {
-            let seekOffset = size - UInt64(bufferSize)
-            if seekOffset > UInt64(data.count) {
-                do {
-                    try fileHandle.seek(toOffset: seekOffset)
-                    if let endData = try? fileHandle.read(upToCount: bufferSize) {
-                        data.append(endData)
-                    }
-                } catch {}
-            }
-        }
-        
-        let hasher = XXHash64()
-        hasher.update(data: data)
-        return String(hasher.finalize(), radix: 16)
+        return XXHash64.getPass1Hash(url: url)
     }
     
     private func getPass2Hash(url: URL, useSHA256: Bool) -> String? {
-        guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? fileHandle.close() }
-        
-        let chunkSize = 65536
-        
         if useSHA256 {
+            guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
+            defer { try? fileHandle.close() }
+            let chunkSize = 65536
             var shaHasher = SHA256()
             while let chunk = try? fileHandle.read(upToCount: chunkSize), !chunk.isEmpty {
                 if self.isCancelled { return nil }
@@ -311,12 +281,7 @@ public final class DuplicateFinder: ObservableObject {
             let digest = shaHasher.finalize()
             return digest.map { String(format: "%02hhx", $0) }.joined()
         } else {
-            let xxHasher = XXHash64()
-            while let chunk = try? fileHandle.read(upToCount: chunkSize), !chunk.isEmpty {
-                if self.isCancelled { return nil }
-                xxHasher.update(data: chunk)
-            }
-            return String(xxHasher.finalize(), radix: 16)
+            return XXHash64.getPass2Hash(url: url, checkCancellation: { self.isCancelled })
         }
     }
     

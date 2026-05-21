@@ -118,4 +118,66 @@ public final class XXHash64 {
         acc = acc &* PR1 &+ PR4
         return acc
     }
+    
+    public static func hash(_ data: Data) -> UInt64 {
+        let hasher = XXHash64()
+        hasher.update(data: data)
+        return hasher.finalize()
+    }
+    
+    public static func hashOfFile(at url: URL) throws -> UInt64 {
+        let hasher = XXHash64()
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        let chunkSize = 65536
+        while let chunk = try handle.read(upToCount: chunkSize), !chunk.isEmpty {
+            hasher.update(data: chunk)
+        }
+        return hasher.finalize()
+    }
+    
+    public static func getPass1Hash(url: URL) -> String? {
+        guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fileHandle.close() }
+        
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? 0
+        let bufferSize = 4096
+        
+        var data = Data()
+        
+        // Читаємо початок
+        if let startData = try? fileHandle.read(upToCount: bufferSize) {
+            data.append(startData)
+        }
+        
+        // Читаємо кінець
+        if size > UInt64(bufferSize) {
+            let seekOffset = size - UInt64(bufferSize)
+            if seekOffset > UInt64(data.count) {
+                do {
+                    try fileHandle.seek(toOffset: seekOffset)
+                    if let endData = try? fileHandle.read(upToCount: bufferSize) {
+                        data.append(endData)
+                    }
+                } catch {}
+            }
+        }
+        
+        let hasher = XXHash64()
+        hasher.update(data: data)
+        return String(hasher.finalize(), radix: 16)
+    }
+
+    public static func getPass2Hash(url: URL, checkCancellation: (() -> Bool)? = nil) -> String? {
+        guard let fileHandle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fileHandle.close() }
+        
+        let chunkSize = 65536
+        let xxHasher = XXHash64()
+        while let chunk = try? fileHandle.read(upToCount: chunkSize), !chunk.isEmpty {
+            if let shouldCancel = checkCancellation, shouldCancel() { return nil }
+            xxHasher.update(data: chunk)
+        }
+        return String(xxHasher.finalize(), radix: 16)
+    }
 }

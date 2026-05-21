@@ -1,5 +1,4 @@
 import Foundation
-import CryptoKit
 import AppKit
 
 public enum SortMode: String, Codable {
@@ -69,12 +68,6 @@ public class SorterEngine {
         return false
     }
     
-    // Отримати MD5-хеш файлу для дублікатів
-    public func getFileMD5(url: URL) -> String? {
-        guard let data = try? Data(contentsOf: url, options: .mappedIfSafe) else { return nil }
-        let digest = Insecure.MD5.hash(data: data)
-        return digest.map { String(format: "%02hhx", $0) }.joined()
-    }
     
     // Класифікувати один файл за розширенням
     public func getFileCategory(_ url: URL) -> String {
@@ -213,7 +206,45 @@ public class SorterEngine {
         var duplicateCount = 0
         
         var history = SessionHistory(base_dir: targetURL.path)
-        var fileHashes: [String: URL] = [:]
+        
+        // Попередній аналіз дублікатів (size -> quick -> full) за допомогою XXHash64
+        var duplicateMap: [URL: URL] = [:]
+        if detectDuplicates {
+            var sizeMap: [Int64: [URL]] = [:]
+            for fileURL in filesToSort {
+                let size = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
+                if size > 0 {
+                    sizeMap[size, default: []].append(fileURL)
+                }
+            }
+            
+            var pass1Map: [String: [URL]] = [:]
+            for (size, urls) in sizeMap where urls.count > 1 {
+                for url in urls {
+                    if let pass1 = XXHash64.getPass1Hash(url: url) {
+                        let key = "\(size)-\(pass1)"
+                        pass1Map[key, default: []].append(url)
+                    }
+                }
+            }
+            
+            for (_, urls) in pass1Map where urls.count > 1 {
+                var pass2Map: [String: [URL]] = [:]
+                for url in urls {
+                    if let pass2 = XXHash64.getPass2Hash(url: url) {
+                        pass2Map[pass2, default: []].append(url)
+                    }
+                }
+                
+                for (_, matchedUrls) in pass2Map where matchedUrls.count > 1 {
+                    let sortedMatched = matchedUrls.sorted(by: { $0.path.localizedCompare($1.path) == .orderedAscending })
+                    let original = sortedMatched[0]
+                    for dup in sortedMatched.dropFirst() {
+                        duplicateMap[dup] = original
+                    }
+                }
+            }
+        }
         
         // Допоміжна функція для логування створення папок в історію
         func recordDirCreation(_ dirURL: URL) {
@@ -310,13 +341,9 @@ public class SorterEngine {
             var originalFile: URL? = nil
             
             if detectDuplicates {
-                if let hash = getFileMD5(url: fileURL) {
-                    if let orig = fileHashes[hash] {
-                        isDuplicate = true
-                        originalFile = orig
-                    } else {
-                        fileHashes[hash] = fileURL
-                    }
+                if let orig = duplicateMap[fileURL] {
+                    isDuplicate = true
+                    originalFile = orig
                 }
             }
             
