@@ -139,17 +139,30 @@ public struct SimilarPhotosView: View {
                 // Панель підсумку та видалення
                 HStack {
                     Text("Знайдено груп схожих фото: \(finder.similarGroups.count) | Позначено для видалення: \(checkedFiles.count)")
-                        .fontWeight(.semibold)
+                        .font(DT.Font.bodyWeight(13, weight: .semibold))
                         .foregroundColor(DT.Color.textPrimary)
                     
                     Spacer()
+                    
+                    if !checkedFiles.isEmpty {
+                        Button(action: { checkedFiles.removeAll() }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle")
+                                Text("Скинути вибір")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                    }
                     
                     Button(action: {
                         if !checkedFiles.isEmpty {
                             showConfirmDelete = true
                         }
                     }) {
-                        Text("Видалити позначені в Смітник (\(checkedFiles.count))")
+                        HStack(spacing: 6) {
+                            Image(systemName: "trash")
+                            Text("Видалити позначені в Смітник (\(checkedFiles.count))")
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
@@ -186,6 +199,18 @@ public struct SimilarPhotosView: View {
                                             .foregroundColor(DT.Color.textSecondary)
                                     }
                                     
+                                    Spacer()
+                                    
+                                    // Badge: скільки обрано з цієї групи
+                                    let selectedInGroup = group.photos.filter { checkedFiles.contains($0) }.count
+                                    if selectedInGroup > 0 {
+                                        Text("\(selectedInGroup)")
+                                            .font(DT.Font.mono(10))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Capsule().fill(Color.red))
+                                    }
                                 }
                             }
                             .tag(group.id)
@@ -193,83 +218,212 @@ public struct SimilarPhotosView: View {
                     }
                     .frame(minWidth: 250, idealWidth: 320)
                     
-                    // Права колонка: перегляд та порівняння фото в групі side-by-side
+                    // Права колонка: перегляд та порівняння фото в групі
                     if let selectedGroup = finder.similarGroups.first(where: { $0.id == selectedGroupId }) {
-                        ScrollView(.vertical) {
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220))], spacing: 16) {
-                                ForEach(selectedGroup.photos, id: \.self) { photoURL in
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        // Фото preview — use cached thumbnail
-                                        ZStack(alignment: .topTrailing) {
-                                            if let thumb = thumbCache.thumbnail(for: photoURL, maxSize: 400) {
-                                                Image(nsImage: thumb)
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fit)
-                                                    .frame(height: 180)
-                                                    .cornerRadius(DT.Radius.sm)
-                                                    .shadow(radius: 2)
-                                            } else {
-                                                RoundedRectangle(cornerRadius: DT.Radius.sm)
-                                                    .fill(DT.Color.glass)
-                                                    .frame(height: 180)
-                                                    .overlay(Text("Помилка завантаження").font(.caption).foregroundColor(DT.Color.textTertiary))
+                        VStack(spacing: 0) {
+                            // Toolbar з кнопками масового вибору
+                            HStack(spacing: 12) {
+                                let selectedInGroup = selectedGroup.photos.filter { checkedFiles.contains($0) }.count
+                                
+                                Text("\(selectedInGroup) з \(selectedGroup.photos.count) обрано")
+                                    .font(DT.Font.body(12))
+                                    .foregroundColor(DT.Color.textSecondary)
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    // Вибрати всі крім першого (оригіналу)
+                                    Haptics.alignment()
+                                    for photo in selectedGroup.photos.dropFirst() {
+                                        checkedFiles.insert(photo)
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                        Text("Вибрати копії")
+                                    }
+                                    .font(DT.Font.body(12))
+                                }
+                                .buttonStyle(.bordered)
+                                .help("Позначити всі крім першого (оригіналу)")
+                                
+                                Button(action: {
+                                    // Зняти вибір в цій групі
+                                    for photo in selectedGroup.photos {
+                                        checkedFiles.remove(photo)
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "xmark.circle")
+                                        Text("Зняти вибір")
+                                    }
+                                    .font(DT.Font.body(12))
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(DT.Color.glass)
+                            
+                            // Grid з фотографіями
+                            ScrollView(.vertical) {
+                                // Підказка
+                                HStack(spacing: 6) {
+                                    Image(systemName: "hand.tap")
+                                        .foregroundColor(DT.Color.accent)
+                                    Text("Натисніть на фото щоб позначити для видалення")
+                                        .font(DT.Font.body(11))
+                                        .foregroundColor(DT.Color.textTertiary)
+                                }
+                                .padding(.top, 8)
+                                
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220))], spacing: 16) {
+                                    ForEach(Array(selectedGroup.photos.enumerated()), id: \.element) { index, photoURL in
+                                        let isChecked = checkedFiles.contains(photoURL)
+                                        let isOriginal = index == 0
+                                        
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            // Фото preview — клік на все фото для вибору
+                                            ZStack(alignment: .topLeading) {
+                                                ZStack(alignment: .topTrailing) {
+                                                    if let thumb = thumbCache.thumbnail(for: photoURL, maxSize: 400) {
+                                                        Image(nsImage: thumb)
+                                                            .resizable()
+                                                            .aspectRatio(contentMode: .fit)
+                                                            .frame(height: 180)
+                                                            .cornerRadius(DT.Radius.sm)
+                                                            .shadow(radius: 2)
+                                                    } else {
+                                                        RoundedRectangle(cornerRadius: DT.Radius.sm)
+                                                            .fill(DT.Color.glass)
+                                                            .frame(height: 180)
+                                                            .overlay(Text("Помилка завантаження").font(.caption).foregroundColor(DT.Color.textTertiary))
+                                                    }
+                                                    
+                                                    // Чекбокс великий та помітний
+                                                    ZStack {
+                                                        Circle()
+                                                            .fill(isChecked ? DT.Color.accent : Color.black.opacity(0.5))
+                                                            .frame(width: 28, height: 28)
+                                                        
+                                                        Circle()
+                                                            .strokeBorder(Color.white.opacity(0.8), lineWidth: 2)
+                                                            .frame(width: 28, height: 28)
+                                                        
+                                                        if isChecked {
+                                                            Image(systemName: "checkmark")
+                                                                .font(.system(size: 14, weight: .bold))
+                                                                .foregroundColor(.white)
+                                                        }
+                                                    }
+                                                    .padding(8)
+                                                }
+                                                .overlay(
+                                                    // Яскрава рамка на вибраних
+                                                    RoundedRectangle(cornerRadius: DT.Radius.sm)
+                                                        .strokeBorder(
+                                                            isChecked ? DT.Color.accent : Color.clear,
+                                                            lineWidth: 3
+                                                        )
+                                                )
+                                                .opacity(isChecked ? 0.75 : 1.0)
+                                                
+                                                // Бейдж "Оригінал" на першому фото
+                                                if isOriginal {
+                                                    Text("ОРИГІНАЛ")
+                                                        .font(.system(size: 9, weight: .bold))
+                                                        .foregroundColor(.white)
+                                                        .padding(.horizontal, 6)
+                                                        .padding(.vertical, 3)
+                                                        .background(Capsule().fill(DT.Color.success))
+                                                        .padding(8)
+                                                }
+                                            }
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                withAnimation(DT.Animation.springFast) {
+                                                    if isChecked {
+                                                        checkedFiles.remove(photoURL)
+                                                    } else {
+                                                        checkedFiles.insert(photoURL)
+                                                    }
+                                                    Haptics.alignment()
+                                                }
                                             }
                                             
-                                            Toggle("", isOn: Binding(
-                                                get: { checkedFiles.contains(photoURL) },
-                                                set: { isChecked in
-                                                    if isChecked {
-                                                        checkedFiles.insert(photoURL)
-                                                    } else {
-                                                        checkedFiles.remove(photoURL)
+                                            // Інформація про файл
+                                            HStack {
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(photoURL.lastPathComponent)
+                                                        .font(DT.Font.body(12))
+                                                        .fontWeight(.bold)
+                                                        .lineLimit(1)
+                                                        .foregroundColor(DT.Color.textPrimary)
+                                                    
+                                                    Text("Розмір: \(formatBytes(getFileSize(photoURL)))  •  \(getImageDimensions(for: photoURL))")
+                                                        .font(DT.Font.mono(10))
+                                                        .foregroundColor(DT.Color.textSecondary)
+                                                    
+                                                    Text("Змінено: \(formatDate(getFileDate(photoURL)))")
+                                                        .font(DT.Font.mono(10))
+                                                        .foregroundColor(DT.Color.textTertiary)
+                                                }
+                                                
+                                                Spacer()
+                                            }
+                                            
+                                            HStack(spacing: 8) {
+                                                Button(action: {
+                                                    withAnimation(DT.Animation.springFast) {
+                                                        if isChecked {
+                                                            checkedFiles.remove(photoURL)
+                                                        } else {
+                                                            checkedFiles.insert(photoURL)
+                                                        }
+                                                        Haptics.alignment()
+                                                    }
+                                                }) {
+                                                    HStack(spacing: 4) {
+                                                        Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")
+                                                            .foregroundColor(isChecked ? DT.Color.accent : DT.Color.textTertiary)
+                                                        Text(isChecked ? "Обрано" : "Обрати")
+                                                            .font(DT.Font.body(12))
                                                     }
                                                 }
-                                            ))
-                                            .toggleStyle(CheckboxToggleStyle())
-                                            .padding(6)
-                                            .background(DT.Color.glassHover)
-                                            .cornerRadius(DT.Radius.sm)
-                                            .padding(8)
-                                        }
-                                        
-                                        // Інформація про файл
-                                        Text(photoURL.lastPathComponent)
-                                            .font(.caption)
-                                            .fontWeight(.bold)
-                                            .lineLimit(1)
-                                            .foregroundColor(DT.Color.textPrimary)
-                                        
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("Розмір: \(formatBytes(getFileSize(photoURL)))")
-                                            Text("Роздільна здатність: \(getImageDimensions(for: photoURL))")
-                                            Text("Змінено: \(formatDate(getFileDate(photoURL)))")
-                                        }
-                                        .font(.system(size: 10))
-                                        .foregroundColor(DT.Color.textSecondary)
-                                        
-                                        HStack {
-                                            Button("Перегляд") {
-                                                QuickLookHelper.shared.showPreview(urls: [photoURL])
+                                                .buttonStyle(.bordered)
+                                                
+                                                Spacer()
+                                                
+                                                Button("Перегляд") {
+                                                    QuickLookHelper.shared.showPreview(urls: [photoURL])
+                                                }
+                                                .buttonStyle(.bordered)
+                                                
+                                                Button("Показати") {
+                                                    NSWorkspace.shared.selectFile(photoURL.path, inFileViewerRootedAtPath: photoURL.deletingLastPathComponent().path)
+                                                }
+                                                .buttonStyle(.bordered)
                                             }
-                                            .buttonStyle(.bordered)
-                                            
-                                            Button("Показати") {
-                                                NSWorkspace.shared.selectFile(photoURL.path, inFileViewerRootedAtPath: photoURL.deletingLastPathComponent().path)
-                                            }
-                                            .buttonStyle(.bordered)
                                         }
+                                        .padding(10)
+                                        .liquidGlass(radius: DT.Radius.md)
                                     }
-                                    .padding(8)
-                                    .liquidGlass(radius: DT.Radius.md)
                                 }
+                                .padding()
                             }
-                            .padding()
                         }
                         .frame(minWidth: 350)
                     } else {
-                        VStack {
-                            Text("Оберіть групу фотографій для порівняння")
+                        VStack(spacing: 12) {
+                            Image(systemName: "hand.point.left")
+                                .font(.system(size: 32))
+                                .foregroundColor(DT.Color.textTertiary)
+                            Text("Оберіть групу фотографій зліва")
+                                .font(DT.Font.body(14))
                                 .foregroundColor(DT.Color.textSecondary)
+                            Text("Потім натискайте на фото щоб позначити для видалення")
+                                .font(DT.Font.body(12))
+                                .foregroundColor(DT.Color.textTertiary)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
