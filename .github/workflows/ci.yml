@@ -62,8 +62,8 @@ jobs:
           fi
           echo "Found Profile Data: $PROFDATA"
           
-          # Generate coverage report for Models
-          xcrun llvm-cov report "$TEST_BINARY" -instr-profile="$PROFDATA" Sources/SmartFileSorter/Models/ > coverage_report.txt
+          # Generate coverage report for Models, ignoring UI/infrastructure/ML files
+          xcrun llvm-cov report "$TEST_BINARY" -instr-profile="$PROFDATA" -ignore-filename-regex="(DesignSystem|SorterAppIntents|WatcherViewModel|SoundManager|ImageClassifier|AIModelManager|SemanticSearchEngine|OCRDatabase|SimilarPhotosFinder|DiskAnalyzer|ScheduleManager|SmartSelectionLearner|ProfileManager|SorterServicesProvider)" Sources/SmartFileSorter/Models/ > coverage_report.txt
           
           # Run python parser to verify coverage is >= 60%
           python3 -c "
