@@ -50,11 +50,7 @@ public class SorterEngine {
     
     private let excludedNames: Set<String> = ["Відео", "Зображення", "Документи", "Аудіо", "Архіви", "Дублікати", "Інші файли"]
     
-    // Шлях до файлу історії
-    public var historyFileURL: URL {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        return home.appendingPathComponent(".gemini/antigravity/scratch/file_sorter/last_session.json")
-    }
+
     
     // Перевірка, чи папка має бути виключена
     public func isExcludedDir(_ url: URL) -> Bool {
@@ -436,17 +432,6 @@ public class SorterEngine {
             
             // Зберігаємо історію
             if !history.moves.isEmpty {
-                // Створюємо папку для історії, якщо її немає
-                let historyDir = historyFileURL.deletingLastPathComponent()
-                try? fileManager.createDirectory(at: historyDir, withIntermediateDirectories: true, attributes: nil)
-                
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = .prettyPrinted
-                if let data = try? encoder.encode(history) {
-                    try? data.write(to: historyFileURL)
-                }
-                
-                // Додатково зберігаємо в новий HistoryManager
                 let batchOps = history.moves.map { move -> BatchOperation in
                     let size = (try? fileManager.attributesOfItem(atPath: move.new)[.size] as? Int64) ?? 0
                     let isTrash = move.new.contains("/.Trash/") || move.new.contains("/Trash/")
@@ -460,10 +445,6 @@ public class SorterEngine {
                     profileName: activeProfile
                 )
                 HistoryManager.shared.addBatch(batch)
-            } else {
-                if fileManager.fileExists(atPath: historyFileURL.path) {
-                    try? fileManager.removeItem(at: historyFileURL)
-                }
             }
         }
         
@@ -472,74 +453,11 @@ public class SorterEngine {
     
     // Скасування останнього сортування (Undo)
     public func undoSorting() -> [String] {
-        var logs: [String] = []
-        let fileManager = FileManager.default
-        
-        guard fileManager.fileExists(atPath: historyFileURL.path) else {
-            return ["Немає збереженої історії попереднього сортування."]
-        }
-        
-        guard let data = try? Data(contentsOf: historyFileURL),
-              let history = try? JSONDecoder().decode(SessionHistory.self, from: data) else {
-            return ["Помилка зчитування або пошкоджений файл історії."]
-        }
-        
-        logs.append("--- Скасування останнього сортування ---")
-        var successCount = 0
-        var failCount = 0
-        
-        // Повертаємо файли/папки назад (в зворотному порядку)
-        for move in history.moves.reversed() {
-            let originalURL = URL(fileURLWithPath: move.original)
-            let newURL = URL(fileURLWithPath: move.new)
-            
-            if fileManager.fileExists(atPath: newURL.path) {
-                do {
-                    // Переконаємось, що батьківська папка існує
-                    try fileManager.createDirectory(at: originalURL.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
-                    try fileManager.moveItem(at: newURL, to: originalURL)
-                    logs.append("[ВІДНОВЛЕНО] '\(originalURL.lastPathComponent)' повернуто")
-                    successCount += 1
-                } catch {
-                    logs.append("[ПОМИЛКА] Не вдалося відновити '\(newURL.lastPathComponent)': \(error.localizedDescription)")
-                    failCount += 1
-                }
-            } else {
-                logs.append("[ПОМИЛКА] Об'єкт не знайдено в місці призначення: '\(newURL.path)'")
-                failCount += 1
-            }
-        }
-        
-        // Очищаємо пусті створені папки в зворотному порядку
-        for dirPath in history.created_dirs.reversed() {
-            let dirURL = URL(fileURLWithPath: dirPath)
-            var isDir: ObjCBool = false
-            if fileManager.fileExists(atPath: dirURL.path, isDirectory: &isDir), isDir.boolValue {
-                if let contents = try? fileManager.contentsOfDirectory(atPath: dirURL.path), contents.isEmpty {
-                    do {
-                        try fileManager.removeItem(at: dirURL)
-                        logs.append("[ВИДАЛЕНО] Очищено створену порожню папку '\(dirURL.lastPathComponent)'")
-                    } catch {
-                        // Ігноруємо помилки очищення папок
-                    }
-                }
-            }
-        }
-        
-        // Видаляємо файл історії після скасування
-        try? fileManager.removeItem(at: historyFileURL)
-        
-        logs.append("\n--- Скасування завершено ---")
-        logs.append("Успішно відновлено: \(successCount)")
-        if failCount > 0 {
-            logs.append("Помилок відновлення: \(failCount)")
-        }
-        
-        return logs
+        return HistoryManager.shared.undoLastBatch()
     }
     
     // Перевірка наявності файлу історії
     public func checkHistoryExists() -> Bool {
-        return FileManager.default.fileExists(atPath: historyFileURL.path)
+        return HistoryManager.shared.checkHistoryExists()
     }
 }
