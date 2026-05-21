@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Smart File Sorter Updates</title>
+    <link>https://raw.githubusercontent.com/slavashootit/smart-file-sorter/main/appcast.xml</link>
+    <description>Most recent updates to Smart File Sorter.</description>
+    <language>uk</language>
+    <item>
+      <title>Version 1.4.0 (Consolidation)</title>
+      <sparkle:releaseNotesLink>
+        https://github.com/slavashootit/smart-file-sorter/releases/tag/v1.4.0
+      </sparkle:releaseNotesLink>
+      <pubDate>Thu, 21 May 2026 12:45:00 +0300</pubDate>
+      <enclosure url="https://github.com/slavashootit/smart-file-sorter/releases/download/v1.4.0/SmartFileSorter.dmg"
+                 sparkle:version="1.4.0"
+                 sparkle:shortVersionString="1.4.0"
+                 length="4959047"
+                 type="application/octet-stream"
+                 sparkle:edSignature="PLACEHOLDER_SIGNATURE_PLEASE_REPLACE_WITH_YOUR_KEY"/>
+    </item>
+  </channel>
+</rss>
