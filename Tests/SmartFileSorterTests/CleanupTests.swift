@@ -4,6 +4,7 @@ import XCTest
 final class CleanupTests: XCTestCase {
     
     var tempDirectoryURL: URL!
+    private var originalExclusions: ExclusionsConfig!
     
     override func setUpWithError() throws {
         try super.setUpWithError()
@@ -11,12 +12,24 @@ final class CleanupTests: XCTestCase {
         let tempDir = FileManager.default.temporaryDirectory
         tempDirectoryURL = tempDir.appendingPathComponent("SmartFileSorterCleanupTests_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDirectoryURL, withIntermediateDirectories: true, attributes: nil)
+        
+        // Exclude /private from excluded paths for testing, as temp directories on macOS are in /private
+        originalExclusions = ConfigManager.shared.exclusions
+        var testExclusions = originalExclusions!
+        testExclusions.excludedPaths = testExclusions.excludedPaths.filter { $0 != "/private" }
+        ConfigManager.shared.exclusions = testExclusions
     }
     
     override func tearDownWithError() throws {
         if FileManager.default.fileExists(atPath: tempDirectoryURL.path) {
-            try FileManager.default.removeItem(at: tempDirectoryURL)
+            try? FileManager.default.removeItem(at: tempDirectoryURL)
         }
+        
+        // Restore original configuration
+        if let original = originalExclusions {
+            ConfigManager.shared.exclusions = original
+        }
+        
         try super.tearDownWithError()
     }
     

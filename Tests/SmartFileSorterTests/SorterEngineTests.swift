@@ -251,14 +251,17 @@ final class SorterEngineTests: XCTestCase {
         XCTAssertTrue(bookmarkSaved, "Має успішно зберегти закладку безпеки")
         
         let restoredBookmarks = bookmarkMgr.restoreAllBookmarks()
-        XCTAssertTrue(restoredBookmarks.map { $0.path }.contains(testBookmarkFolder.path), "restoredBookmarks має містити тестову папку")
+        let restoredPaths = restoredBookmarks.map { $0.resolvingSymlinksInPath().path }
+        let expectedPath = testBookmarkFolder.resolvingSymlinksInPath().path
+        XCTAssertTrue(restoredPaths.contains(expectedPath), "restoredBookmarks має містити тестову папку")
         
         bookmarkMgr.startAccessing(testBookmarkFolder)
         bookmarkMgr.stopAccessing(testBookmarkFolder)
         bookmarkMgr.removeBookmark(for: testBookmarkFolder)
         
         let restoredAfterRemove = bookmarkMgr.restoreAllBookmarks()
-        XCTAssertFalse(restoredAfterRemove.map { $0.path }.contains(testBookmarkFolder.path), "Після видалення закладка не повинна відновлюватись")
+        let restoredPathsAfterRemove = restoredAfterRemove.map { $0.resolvingSymlinksInPath().path }
+        XCTAssertFalse(restoredPathsAfterRemove.contains(expectedPath), "Після видалення закладка не повинна відновлюватись")
     }
     
     // 5. Тестування FSEventsWatcher
