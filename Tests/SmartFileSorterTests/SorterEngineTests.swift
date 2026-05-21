@@ -8,6 +8,9 @@ final class SorterEngineTests: XCTestCase {
     private var sandboxURL: URL!
     private var engine: SorterEngine!
     private var fileManager: FileManager!
+    private var originalExclusions: ExclusionsConfig!
+    private var originalBookmarksDefaults: UserDefaults!
+    private var testSuiteName: String?
     
     override func setUpWithError() throws {
         try super.setUpWithError()
@@ -21,6 +24,19 @@ final class SorterEngineTests: XCTestCase {
         let dbURL = tempDirectoryURL.appendingPathComponent("history.db")
         HistoryManager.shared.setDatabasePath(dbURL.path)
         
+        // Exclude /private from excluded paths for testing, as temp directories on macOS are in /private
+        originalExclusions = ConfigManager.shared.exclusions
+        var testExclusions = originalExclusions!
+        testExclusions.excludedPaths = testExclusions.excludedPaths.filter { $0 != "/private" }
+        ConfigManager.shared.exclusions = testExclusions
+        
+        // Isolate UserDefaults for SecurityBookmarks to avoid collisions
+        originalBookmarksDefaults = SecurityBookmarks.shared.defaults
+        testSuiteName = "com.smartfilesorter.test.bookmarks.\(UUID().uuidString)"
+        if let testDefaults = UserDefaults(suiteName: testSuiteName!) {
+            SecurityBookmarks.shared.defaults = testDefaults
+        }
+        
         engine = SorterEngine.shared
         
         // Clear previous history
@@ -31,6 +47,18 @@ final class SorterEngineTests: XCTestCase {
         if fileManager.fileExists(atPath: tempDirectoryURL.path) {
             try? fileManager.removeItem(at: tempDirectoryURL)
         }
+        
+        // Restore original configuration and user defaults
+        if let original = originalExclusions {
+            ConfigManager.shared.exclusions = original
+        }
+        if let suite = testSuiteName {
+            SecurityBookmarks.shared.defaults.removePersistentDomain(forName: suite)
+        }
+        if let originalDefaults = originalBookmarksDefaults {
+            SecurityBookmarks.shared.defaults = originalDefaults
+        }
+        
         engine = nil
         fileManager = nil
         try super.tearDownWithError()

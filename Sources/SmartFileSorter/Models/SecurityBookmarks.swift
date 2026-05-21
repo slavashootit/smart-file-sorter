@@ -9,6 +9,8 @@ public class SecurityBookmarks {
     private let defaultsKey = "smart_file_sorter_bookmarks"
     private var activeAccessURLs: [String: URL] = [:]
     
+    public var defaults: UserDefaults = .standard
+    
     public init() {}
     
     /// Збереження закладки безпеки для конкретної папки
@@ -32,9 +34,9 @@ public class SecurityBookmarks {
                     relativeTo: nil
                 )
             }
-            var bookmarks = UserDefaults.standard.dictionary(forKey: defaultsKey) as? [String: Data] ?? [:]
+            var bookmarks = defaults.dictionary(forKey: defaultsKey) as? [String: Data] ?? [:]
             bookmarks[url.path] = data
-            UserDefaults.standard.set(bookmarks, forKey: defaultsKey)
+            defaults.set(bookmarks, forKey: defaultsKey)
             return true
         } catch {
             print("[SECURITY] Помилка створення закладки для \(url.path): \(error.localizedDescription)")
@@ -46,15 +48,15 @@ public class SecurityBookmarks {
     /// - Parameter url: URL папки
     public func removeBookmark(for url: URL) {
         stopAccessing(url)
-        var bookmarks = UserDefaults.standard.dictionary(forKey: defaultsKey) as? [String: Data] ?? [:]
+        var bookmarks = defaults.dictionary(forKey: defaultsKey) as? [String: Data] ?? [:]
         bookmarks.removeValue(forKey: url.path)
-        UserDefaults.standard.set(bookmarks, forKey: defaultsKey)
+        defaults.set(bookmarks, forKey: defaultsKey)
     }
     
     /// Отримання списку всіх збережених папок
     /// - Returns: Масив URL
     public func restoreAllBookmarks() -> [URL] {
-        guard let bookmarks = UserDefaults.standard.dictionary(forKey: defaultsKey) as? [String: Data] else {
+        guard let bookmarks = defaults.dictionary(forKey: defaultsKey) as? [String: Data] else {
             return []
         }
         
