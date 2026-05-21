@@ -24,18 +24,27 @@ jobs:
       - name: Verify Code Coverage
         run: |
           # Find the compiled test binary
-          TEST_BINARY=$(find .build/debug -name "*.xctest" -type d | while read bundle; do
+          TEST_BINARY=""
+          for bundle in $(find .build -name "*.xctest" -type d 2>/dev/null); do
             binary_name=$(basename "$bundle" .xctest)
             binary_path="$bundle/Contents/MacOS/$binary_name"
             if [ -f "$binary_path" ]; then
-              echo "$binary_path"
+              TEST_BINARY="$binary_path"
               break
             fi
-          done)
+          done
           
           if [ -z "$TEST_BINARY" ]; then
-            # Fallback to linux/other structure just in case
-            TEST_BINARY=$(find .build/debug -maxdepth 1 -type f -executable -name "*Tests")
+            for f in $(find .build -type f 2>/dev/null); do
+              if [ -x "$f" ]; then
+                case "$f" in
+                  *Tests|*PackageTests)
+                    TEST_BINARY="$f"
+                    break
+                    ;;
+                esac
+              fi
+            done
           fi
           
           if [ -z "$TEST_BINARY" ]; then
@@ -45,8 +54,16 @@ jobs:
           
           echo "Found Test Binary: $TEST_BINARY"
           
+          # Find the default.profdata file
+          PROFDATA=$(find .build -name "default.profdata" -type f | head -n 1)
+          if [ -z "$PROFDATA" ]; then
+            echo "Error: default.profdata not found!"
+            exit 1
+          fi
+          echo "Found Profile Data: $PROFDATA"
+          
           # Generate coverage report for Models
-          xcrun llvm-cov report "$TEST_BINARY" -instr-profile=.build/debug/codecov/default.profdata Sources/SmartFileSorter/Models/ > coverage_report.txt
+          xcrun llvm-cov report "$TEST_BINARY" -instr-profile="$PROFDATA" Sources/SmartFileSorter/Models/ > coverage_report.txt
           
           # Run python parser to verify coverage is >= 60%
           python3 -c "
