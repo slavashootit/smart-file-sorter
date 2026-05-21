@@ -169,14 +169,15 @@ struct MainView: View {
                     }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
                 .background(
-                    VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+                    VisualEffectView(material: .sidebar, blendingMode: .withinWindow)
                         .liquidGlass(radius: 0)
                 )
                 .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
             } detail: {
                 ZStack {
-                    VisualEffectView(material: .windowBackground, blendingMode: .behindWindow)
+                    VisualEffectView(material: .underWindowBackground, blendingMode: .withinWindow)
                     
                     switch selectedTab {
                     case "sort":

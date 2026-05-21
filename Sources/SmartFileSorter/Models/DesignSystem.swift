@@ -77,9 +77,9 @@ public enum DT {  // Design Tokens — коротко, бо використов
 
 public struct VisualEffectView: NSViewRepresentable {
     public var material: NSVisualEffectView.Material = .underWindowBackground
-    public var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
+    public var blendingMode: NSVisualEffectView.BlendingMode = .withinWindow
     
-    public init(material: NSVisualEffectView.Material = .underWindowBackground, blendingMode: NSVisualEffectView.BlendingMode = .behindWindow) {
+    public init(material: NSVisualEffectView.Material = .underWindowBackground, blendingMode: NSVisualEffectView.BlendingMode = .withinWindow) {
         self.material = material
         self.blendingMode = blendingMode
     }

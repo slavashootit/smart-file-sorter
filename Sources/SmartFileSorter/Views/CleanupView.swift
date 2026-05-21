@@ -90,7 +90,7 @@ public struct CleanupView: View {
             }
             .padding()
             .background(
-                VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+                VisualEffectView(material: .sidebar, blendingMode: .withinWindow)
                     .liquidGlass(radius: 0)
             )
             
