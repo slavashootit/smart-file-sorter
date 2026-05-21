@@ -7,15 +7,20 @@ All notable changes to the **Smart File Sorter** project will be documented in t
 ## [1.5.1] - 2026-05-21
 
 ### Removed
-- **Profile system** (Photography / Work / Home presets) — profile picker removed from sidebar and menu bar, `ProfileManager` deleted entirely.
-- **Semantic Search feature** — `SemanticSearchView`, `SemanticSearchEngine`, and embeddings SQLite table removed. Navigation link and route case deleted from `MainView`.
-- `NLContextualEmbedding` — not used anywhere in the codebase (0 callsites found).
+- **Profile system** — `ProfileManager`, `Profile` struct, profile picker from sidebar and menu bar, `activeProfile`/`currentProfile` properties from all files.
+- **Semantic Search** — `SemanticSearchView`, `SemanticSearchEngine`, embeddings SQLite table, sidebar nav link, route case.
+- **`BatchRecord.profileName`** field — removed from model, SQLite column (`ALTER TABLE DROP COLUMN`), INSERT/SELECT queries, CSV export.
+- `NLContextualEmbedding` — not used anywhere (0 callsites).
+
+### Changed
+- `rules_Home.json` renamed to `rules.json` (migrated on launch via `FileManager.moveItem`).
+- `watcher_paths_Home` UserDefault renamed to `watcher_paths` (migrated on first launch, old key removed).
+- CSV export header: removed "Профіль" column.
 
 ### Notes
-- Legacy `profiles.json` files on disk are silently ignored — no crash on existing installs.
-- Watcher paths continue working under the default `"Home"` key (`watcher_paths_Home`).
-- `BatchRecord.profileName` field is kept in HistoryManager for data compatibility with existing history.
-- `DROP TABLE IF EXISTS embeddings` added to HistoryManager migration step.
+- Legacy `profiles.json` files on disk are silently ignored.
+- All migration code references legacy key names only to read-and-delete them.
+- `grep -rin "profile" Sources/` returns 0 runtime results (only migration SQL).
 
 ---
 
