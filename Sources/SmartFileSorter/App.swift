@@ -36,6 +36,13 @@ struct SmartFileSorterApp: App {
             }
         }
         .windowStyle(.hiddenTitleBar)
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("Про Smart File Sorter") {
+                    NotificationCenter.default.post(name: NSNotification.Name("ShowAboutView"), object: nil)
+                }
+            }
+        }
         
         MenuBarExtra("Smart File Sorter", systemImage: "folder.badge.gearshape") {
             MenuBarView(viewModel: watcherModel)
