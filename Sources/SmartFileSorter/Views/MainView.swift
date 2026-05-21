@@ -13,6 +13,7 @@ struct MainView: View {
     @State private var logs: [String] = []
     @State private var hasHistory: Bool = SorterEngine.shared.checkHistoryExists()
     @AppStorage("onboardingCompleted") private var onboardingCompleted = false
+    @AppStorage("sidebarCleaningExpanded") private var cleaningExpanded = true
     @State private var showingSmartSelectionAlert = false
     @State private var suggestedPattern: DuplicateSelectionPattern = .none
     @State private var isSorting = false
@@ -64,45 +65,47 @@ struct MainView: View {
                             HStack {
                                 Label("Аналізатор диска", systemImage: "chart.pie")
                                 Spacer()
-                                NavBadge("NEW")
                             }
                             .contentShape(Rectangle())
                             .spotlightHover()
                         }
                         .help("Візуальна карта використання диска — знайдіть найбільші папки")
                         
-                        NavigationLink(value: "duplicates") {
-                            HStack {
-                                Label("Дублікати", systemImage: "doc.on.doc")
-                                Spacer()
-                                NavBadge(duplicateFinder.duplicatesCount)
+                        DisclosureGroup(isExpanded: $cleaningExpanded) {
+                            NavigationLink(value: "duplicates") {
+                                HStack {
+                                    Label("Дублікати", systemImage: "doc.on.doc")
+                                    Spacer()
+                                    NavBadge(duplicateFinder.duplicatesCount)
+                                }
+                                .contentShape(Rectangle())
+                                .spotlightHover()
                             }
-                            .contentShape(Rectangle())
-                            .spotlightHover()
-                        }
-                        .help("Пошук і видалення дублікатів файлів за хешем вмісту")
-                        
-                        NavigationLink(value: "similar") {
-                            HStack {
-                                Label("Схожі фото", systemImage: "photo.on.rectangle.angled")
-                                Spacer()
+                            .help("Пошук і видалення дублікатів файлів за хешем вмісту")
+                            
+                            NavigationLink(value: "similar") {
+                                HStack {
+                                    Label("Схожі фото", systemImage: "photo.on.rectangle.angled")
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                                .spotlightHover()
                             }
-                            .contentShape(Rectangle())
-                            .spotlightHover()
-                        }
-                        .help("Знаходить візуально схожі фотографії за допомогою Apple Vision AI")
-                        
-
-                        
-                        NavigationLink(value: "cleanup") {
-                            HStack {
-                                Label("Очищення", systemImage: "trash")
-                                Spacer()
+                            .help("Знаходить візуально схожі фотографії за допомогою Apple Vision AI")
+                            
+                            NavigationLink(value: "cleanup") {
+                                HStack {
+                                    Label("Очищення", systemImage: "trash")
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                                .spotlightHover()
                             }
-                            .contentShape(Rectangle())
-                            .spotlightHover()
+                            .help("Великі файли, старі завантаження, порожні папки та керування Смітником")
+                        } label: {
+                            Label("Прибирання", systemImage: "trash")
+                                .font(DT.Font.bodyWeight(13, weight: .semibold))
                         }
-                        .help("Великі файли, старі завантаження, порожні папки та керування Смітником")
                         
                         NavigationLink(value: "templates") {
                             HStack {
@@ -133,16 +136,6 @@ struct MainView: View {
                             .spotlightHover()
                         }
                         .help("Розклад автосортування, звукові ефекти та системні параметри")
-                        
-                        NavigationLink(value: "about") {
-                            HStack {
-                                Label("Про програму", systemImage: "info.circle")
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
-                            .spotlightHover()
-                        }
-                        .help("Версія додатку, посилання на GitHub та інформація про розробника")
                     }
                 }
                 .listStyle(.sidebar)
@@ -168,7 +161,6 @@ struct MainView: View {
                         DuplicateReviewView()
                     case "similar":
                         SimilarPhotosView()
-
                     case "cleanup":
                         CleanupView()
                     case "templates":
@@ -206,6 +198,9 @@ struct MainView: View {
                 suggestedPattern = pattern
                 showingSmartSelectionAlert = true
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowAboutView"))) { _ in
+            selectedTab = "about"
         }
         .sheet(isPresented: $showingSmartSelectionAlert) {
             VStack(spacing: 16) {
@@ -247,213 +242,22 @@ struct MainView: View {
     
     // Вкладка Сортування
     private var sortTab: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header with StatusPill
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Автоматичне впорядкування")
-                            .font(DT.Font.bodyWeight(20, weight: .bold))
-                        Text("Оберіть папку та параметри для початку")
-                            .font(DT.Font.body(13))
-                            .foregroundColor(DT.Color.textSecondary)
-                    }
-                    Spacer()
-                    StatusPill(status: currentStatus)
-                }
-                .padding(.bottom, 10)
-                
-                // Попередження про конфлікти правил
-                let conflicts = RuleEngine.shared.detectConflicts()
-                if !conflicts.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text("Виявлено конфлікти у правилах:")
-                                .font(.headline)
-                                .foregroundColor(.orange)
-                        }
-                        ForEach(conflicts, id: \.self) { conflict in
-                            Text("• \(conflict)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                    )
-                }
-                
-                // Вибір папки
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("selectFolder")
-                        .font(DT.Font.bodyWeight(14, weight: .semibold))
-                        .foregroundColor(.secondary)
-                    
-                    HStack {
-                        TextField("Шлях до папки...", text: $folderPath)
-                            .textFieldStyle(.roundedBorder)
-                            .font(DT.Font.body(13))
-                        
-                        Button(action: selectFolder) {
-                            HStack(spacing: 6) {
-                                Label("Огляд...", systemImage: "folder.circle")
-                                ShortcutHint("⌘O")
-                            }
-                        }
-                        .keyboardShortcut("o", modifiers: .command)
-                    }
-                }
-                .disabled(isSorting)
-                .padding()
-                .liquidGlass(radius: DT.Radius.lg)
-                
-                // Налаштування сортування
-                HStack(alignment: .top, spacing: 20) {
-                    // Режим сортування
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Режим сортування")
-                            .font(DT.Font.bodyWeight(14, weight: .semibold))
-                        
-                        Picker("", selection: $sortMode) {
-                            Text("За типом").tag(SortMode.type)
-                            Text("За датою").tag(SortMode.date)
-                        }
-                        .pickerStyle(.radioGroup)
-                        
-                        Toggle("Виявляти дублікати", isOn: $detectDuplicates)
-                            .toggleStyle(.checkbox)
-                            .padding(.top, 5)
-                            .onChange(of: detectDuplicates) { _ in
-                                Haptics.alignment()
-                            }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    // Вибір категорій
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Категорії для сортування")
-                            .font(DT.Font.bodyWeight(14, weight: .semibold))
-                        
-                        ForEach(Array(enabledCategories.keys.sorted()), id: \.self) { cat in
-                            Toggle(cat, isOn: Binding(
-                                get: { self.enabledCategories[cat] ?? true },
-                                set: {
-                                    self.enabledCategories[cat] = $0
-                                    Haptics.levelChange()
-                                }
-                            ))
-                            .toggleStyle(.checkbox)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .disabled(isSorting)
-                .padding()
-                .liquidGlass(radius: DT.Radius.lg)
-                
-                // Кнопки дій або Прогрес сортування
-                if isSorting {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Впорядкування файлів...")
-                                .font(DT.Font.bodyWeight(14, weight: .semibold))
-                            Spacer()
-                            Text("\(processedCount) з \(totalCount)")
-                                .font(DT.Font.mono(13))
-                                .foregroundColor(.secondary)
-                        }
-                        if !currentItem.isEmpty {
-                            Text(currentItem)
-                                .font(DT.Font.mono(11))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        }
-                        ProgressView(value: Double(processedCount), total: Double(max(1, totalCount)))
-                            .progressViewStyle(.linear)
-                            .shimmer()
-                        
-                        Button(action: { sortingTask?.cancel() }) {
-                            Label("Скасувати сортування", systemImage: "xmark.circle")
-                                .foregroundColor(.red)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                    }
-                    .padding()
-                    .liquidGlass(radius: DT.Radius.lg)
-                } else {
-                    HStack(spacing: 15) {
-                        Button(action: { runSorting(dryRun: true) }) {
-                            HStack(spacing: 8) {
-                                Label("previewSorting", systemImage: "eye")
-                                ShortcutHint("⌘P")
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                        .keyboardShortcut("p", modifiers: .command)
-                        
-                        MagneticButton(action: { runSorting(dryRun: false) }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "play.fill")
-                                Text("startSorting")
-                                ShortcutHint("⌘⏎")
-                            }
-                        }
-                        .keyboardShortcut(.return, modifiers: .command)
-                    }
-                    
-                    if hasHistory {
-                        Button(action: undoSorting) {
-                            HStack(spacing: 8) {
-                                Label("undoSorting", systemImage: "arrow.uturn.backward")
-                                    .foregroundColor(.orange)
-                                ShortcutHint("⌘Z")
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                        .keyboardShortcut("z", modifiers: .command)
-                    }
-                }
-                
-                // Панель логів (неонова консоль)
-                if !logs.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Журнал операцій")
-                            .font(DT.Font.bodyWeight(14, weight: .semibold))
-                            .foregroundColor(.secondary)
-                        
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 4) {
-                                ForEach(logs, id: \.self) { log in
-                                    Text(log)
-                                        .font(DT.Font.mono(12))
-                                        .foregroundColor(getLogColor(log))
-                                        .multilineTextAlignment(.leading)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .opacity))
-                                }
-                            }
-                            .padding(10)
-                        }
-                        .frame(height: 180)
-                        .liquidGlass(radius: DT.Radius.md)
-                    }
-                }
-            }
-            .padding()
-        }
+        SortingView(
+            folderPath: $folderPath,
+            sortMode: $sortMode,
+            enabledCategories: $enabledCategories,
+            detectDuplicates: $detectDuplicates,
+            isSorting: isSorting,
+            processedCount: processedCount,
+            totalCount: totalCount,
+            currentItem: currentItem,
+            logs: logs,
+            currentStatus: currentStatus,
+            selectedTab: $selectedTab,
+            runSorting: { dryRun in runSorting(dryRun: dryRun) },
+            cancelSorting: { sortingTask?.cancel() },
+            undoSorting: { undoSorting() }
+        )
     }
     
     // Вкладка Налаштування
