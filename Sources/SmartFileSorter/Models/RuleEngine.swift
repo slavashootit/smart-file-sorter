@@ -125,16 +125,17 @@ public class RuleEngine {
     
     public var rulesFileURL: URL {
         let fileManager = FileManager.default
-        let newURL = rulesDirectoryURL.appendingPathComponent("rules_Home.json")
+        let url = rulesDirectoryURL.appendingPathComponent("rules.json")
         
-        // Міграція старого rules.json (якщо є) до rules_Home.json
-        if !fileManager.fileExists(atPath: newURL.path) {
-            let oldURL = rulesDirectoryURL.appendingPathComponent("rules.json")
-            if fileManager.fileExists(atPath: oldURL.path) {
-                try? fileManager.moveItem(at: oldURL, to: newURL)
+        // v1.5.1 migration: rules_Home.json → rules.json
+        if !fileManager.fileExists(atPath: url.path) {
+            let legacyURL = rulesDirectoryURL.appendingPathComponent("rules_Home.json")
+            if fileManager.fileExists(atPath: legacyURL.path) {
+                try? fileManager.moveItem(at: legacyURL, to: url)
+                print("[RULES] Мігровано rules_Home.json → rules.json")
             }
         }
-        return newURL
+        return url
     }
     
     public init() {
