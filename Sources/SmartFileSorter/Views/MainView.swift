@@ -3,7 +3,10 @@ import AppKit
 import Combine
 
 struct MainView: View {
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @ObservedObject var duplicateFinder = DuplicateFinder.shared
     @ObservedObject var profileManager = ProfileManager.shared
+    
     @State private var selectedTab: String = "sort"
     @State private var folderPath: String = ""
     @State private var sortMode: SortMode = .type
@@ -31,6 +34,18 @@ struct MainView: View {
     @State private var showExclusionsEditor = false
     @State private var showCategoriesEditor = false
     
+    private var currentStatus: AppStatus {
+        if isSorting {
+            return .sorting
+        } else if let lastLog = logs.last, lastLog.contains("скасовано") || lastLog.contains("Скасовано") {
+            return .cancelled
+        } else if processedCount > 0 && processedCount == totalCount {
+            return .done
+        } else {
+            return .ready
+        }
+    }
+    
     var body: some View {
         ZStack {
             NavigationSplitView {
@@ -50,58 +65,114 @@ struct MainView: View {
                     
                     Section(header: Text("Навігація").padding(.leading, 6)) {
                         NavigationLink(value: "sort") {
-                            Label("Сортування", systemImage: "folder.badge.gearshape")
+                            HStack {
+                                Label("Сортування", systemImage: "folder.badge.gearshape")
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Автоматичне сортування файлів у папці за типом або датою")
                         
                         NavigationLink(value: "diskMap") {
-                            Label("Аналізатор диска", systemImage: "chart.pie")
+                            HStack {
+                                Label("Аналізатор диска", systemImage: "chart.pie")
+                                Spacer()
+                                NavBadge("NEW")
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Візуальна карта використання диска — знайдіть найбільші папки")
                         
                         NavigationLink(value: "duplicates") {
-                            Label("Дублікати", systemImage: "doc.on.doc")
+                            HStack {
+                                Label("Дублікати", systemImage: "doc.on.doc")
+                                Spacer()
+                                NavBadge(duplicateFinder.duplicatesCount)
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Пошук і видалення дублікатів файлів за хешем вмісту")
                         
                         NavigationLink(value: "similar") {
-                            Label("Схожі фото", systemImage: "photo.on.rectangle.angled")
+                            HStack {
+                                Label("Схожі фото", systemImage: "photo.on.rectangle.angled")
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Знаходить візуально схожі фотографії за допомогою Apple Vision AI")
                         
                         NavigationLink(value: "semantic") {
-                            Label("Семантичний пошук", systemImage: "sparkles")
+                            HStack {
+                                Label("Семантичний пошук", systemImage: "sparkles")
+                                Spacer()
+                                NavBadge("AI")
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Пошук фотографій за текстовим описом (англ.) — Vision AI розпізнає об'єкти")
                         
                         NavigationLink(value: "cleanup") {
-                            Label("Очищення", systemImage: "trash")
+                            HStack {
+                                Label("Очищення", systemImage: "trash")
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Великі файли, старі завантаження, порожні папки та керування Смітником")
                         
                         NavigationLink(value: "templates") {
-                            Label(NSLocalizedString("automationTemplates", comment: ""), systemImage: "square.grid.3x3")
+                            HStack {
+                                Label(NSLocalizedString("automationTemplates", comment: ""), systemImage: "square.grid.3x3")
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Готові шаблони правил автоматичного сортування для швидкого старту")
                         
                         NavigationLink(value: "analytics") {
-                            Label("Аналітика", systemImage: "chart.xyaxis.line")
+                            HStack {
+                                Label("Аналітика", systemImage: "chart.xyaxis.line")
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Статистика сортувань, звільненого простору та активності за часом")
                         
                         NavigationLink(value: "settings") {
-                            Label("Налаштування", systemImage: "gearshape")
+                            HStack {
+                                Label("Налаштування", systemImage: "gearshape")
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Розклад автосортування, звукові ефекти та системні параметри")
                         
                         NavigationLink(value: "about") {
-                            Label("Про програму", systemImage: "info.circle")
+                            HStack {
+                                Label("Про програму", systemImage: "info.circle")
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .spotlightHover()
                         }
                         .help("Версія додатку, посилання на GitHub та інформація про розробника")
                     }
                 }
                 .listStyle(.sidebar)
-                .background(VisualEffectView(material: .sidebar, blendingMode: .behindWindow))
+                .background(
+                    VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+                        .liquidGlass(radius: 0)
+                )
                 .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
             } detail: {
                 ZStack {
@@ -198,6 +269,21 @@ struct MainView: View {
     private var sortTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Header with StatusPill
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Автоматичне впорядкування")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Text("Оберіть папку та параметри для початку")
+                            .font(.subheadline)
+                            .foregroundColor(DT.Color.textSecondary)
+                    }
+                    Spacer()
+                    StatusPill(status: currentStatus)
+                }
+                .padding(.bottom, 10)
+                
                 // Попередження про конфлікти правил
                 let conflicts = RuleEngine.shared.detectConflicts()
                 if !conflicts.isEmpty {
@@ -242,8 +328,7 @@ struct MainView: View {
                 }
                 .disabled(isSorting)
                 .padding()
-                .background(Color.primary.opacity(0.03))
-                .cornerRadius(12)
+                .liquidGlass(radius: DT.Radius.lg)
                 
                 // Налаштування сортування
                 HStack(alignment: .top, spacing: 20) {
@@ -281,8 +366,7 @@ struct MainView: View {
                 }
                 .disabled(isSorting)
                 .padding()
-                .background(Color.primary.opacity(0.03))
-                .cornerRadius(12)
+                .liquidGlass(radius: DT.Radius.lg)
                 
                 // Кнопки дій або Прогрес сортування
                 if isSorting {
@@ -303,6 +387,7 @@ struct MainView: View {
                         }
                         ProgressView(value: Double(processedCount), total: Double(max(1, totalCount)))
                             .progressViewStyle(.linear)
+                            .shimmer()
                         
                         Button(action: { sortingTask?.cancel() }) {
                             Label("Скасувати сортування", systemImage: "xmark.circle")
@@ -313,8 +398,7 @@ struct MainView: View {
                         .controlSize(.large)
                     }
                     .padding()
-                    .background(Color.primary.opacity(0.03))
-                    .cornerRadius(12)
+                    .liquidGlass(radius: DT.Radius.lg)
                 } else {
                     HStack(spacing: 15) {
                         Button(action: { runSorting(dryRun: true) }) {
@@ -329,7 +413,7 @@ struct MainView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(.blue)
+                        .tint(DT.Color.accent)
                         .controlSize(.large)
                     }
                     
@@ -359,13 +443,13 @@ struct MainView: View {
                                         .foregroundColor(getLogColor(log))
                                         .multilineTextAlignment(.leading)
                                         .frame(maxWidth: .infinity, alignment: .leading)
+                                        .transition(reduceMotion ? .opacity : .asymmetric(insertion: .move(edge: .leading).combined(with: .opacity), removal: .opacity))
                                 }
                             }
                             .padding(10)
                         }
                         .frame(height: 180)
-                        .background(Color.black.opacity(0.85))
-                        .cornerRadius(8)
+                        .liquidGlass(radius: DT.Radius.md)
                     }
                 }
             }
@@ -419,7 +503,7 @@ struct MainView: View {
         VStack(spacing: 15) {
             Image(systemName: "folder.badge.gearshape")
                 .font(.system(size: 72))
-                .foregroundColor(.blue)
+                .foregroundColor(DT.Color.accent)
             
             Text("smart-file-sorter")
                 .font(.title)
@@ -484,11 +568,23 @@ struct MainView: View {
                 self.totalCount = progress.totalCount
                 self.currentItem = progress.currentItem
                 if let entry = progress.logEntry {
-                    self.logs.append(entry)
+                    if reduceMotion {
+                        self.logs.append(entry)
+                    } else {
+                        withAnimation(DT.Animation.springFast) {
+                            self.logs.append(entry)
+                        }
+                    }
                 }
                 if progress.isFinished {
                     if let finals = progress.finalLogs {
-                        self.logs.append(contentsOf: finals)
+                        if reduceMotion {
+                            self.logs.append(contentsOf: finals)
+                        } else {
+                            withAnimation(DT.Animation.springFast) {
+                                self.logs.append(contentsOf: finals)
+                            }
+                        }
                     }
                 }
             }
@@ -501,26 +597,33 @@ struct MainView: View {
     
     // Скасування сортування
     private func undoSorting() {
-        logs = SorterEngine.shared.undoSorting()
+        let result = SorterEngine.shared.undoSorting()
+        if reduceMotion {
+            logs = result
+        } else {
+            withAnimation(DT.Animation.springFast) {
+                logs = result
+            }
+        }
         hasHistory = SorterEngine.shared.checkHistoryExists()
     }
     
     // Підсвітка логів
     private func getLogColor(_ log: String) -> Color {
         if log.contains("[УСПІШНО]") {
-            return .green
+            return DT.Color.success
         } else if log.contains("[ПЛАНУЄТЬСЯ]") {
-            return .blue
+            return DT.Color.accentStrong
         } else if log.contains("[ДУБЛІКАТ]") {
             return .cyan
         } else if log.contains("[ПОМИЛКА]") {
-            return .red
+            return DT.Color.danger
         } else if log.contains("[ПРОПУЩЕНО]") {
             return .gray
         } else if log.contains("[ВІДНОВЛЕНО]") {
             return .orange
         }
-        return .white
+        return DT.Color.textPrimary
     }
     
     private func syncCategories() {

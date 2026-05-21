@@ -4,6 +4,28 @@ All notable changes to the **Smart File Sorter** project will be documented in t
 
 ---
 
+## [1.5.0] - 2026-05-21
+
+This release delivers the **v1.5 "Visual Identity"** milestone, implementing a premium, modern design system throughout the entire application with unified design tokens, dynamic animations, and accessibility-first motion controls.
+
+### Added
+- **Design Tokens System**: Introduced unified spacing, radius tokens, spring animation curves, and a custom dark mode color palette (`DT` enum in `DesignSystem.swift`).
+- **Canvas-based Mesh Background**: Added a fluid, multi-blob dynamic mesh gradient background (`MeshBackground.swift`) that runs under the entire interface.
+- **Liquid Glass modifier**: Created a unified glassmorphism styling modifier (`.liquidGlass()`) and applied it to cards, containers, sidebar, and popovers across all 12 views.
+- **Spotlight Hover modifier**: Implemented an interactive mouse-tracking spotlight radial gradient overlay (`.spotlightHover()`) for sidebar navigation items and card hover states.
+- **Animated Status Pill**: Created `StatusPill.swift` to present desaturated, pulsing indicators of the current application state.
+- **Shimmer Progress Indicator**: Implemented a modern shimmering animation overlay (`.shimmer()`) for active progress bars.
+- **Log Slide-in Transitions**: Integrated spring-based asymmetric slide-in transitions for terminal log outputs in the main view console.
+- **Sidebar Notification Badges**: Added live notification badges (`NavBadge.swift`) in the sidebar, displaying a live duplicates count, "AI" label for semantic searches, and "NEW" badge for disk analyzer.
+- **Accessibility Motion Reduction**: Full support for system-wide `@Environment(\.accessibilityReduceMotion)`, which seamlessly disables mesh animations, pulsing effects, log transitions, and shimmers.
+
+### Changed
+- **Forced Dark Mode**: Programmatically locked the application to dark appearance at the root window level.
+- **Swift Concurrency Audit**: Refactored `DuplicateFinder` to utilize task group return values instead of shared state locking (`NSLock`/`OSAllocatedUnfairLock`), completely eliminating Swift 6 concurrency warnings and potential deadlocks.
+- **Modern AVKit Loading APIs**: Resolved macOS 13+ deprecation warnings by replacing synchronous `naturalSize` and `duration` AVURLAsset property reads with modern async-load alternatives (`loadTracks(withMediaType:)`, `load(.naturalSize)`, and `load(.duration)`).
+
+---
+
 ## [1.4.0] - 2026-05-21
 
 This release marks the **v1.4 "Consolidation"** stage, migrating the application to a pure Native Swift/SwiftUI core codebase on macOS, while archiving the legacy Python implementation as an automation fallback.

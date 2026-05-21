@@ -136,8 +136,7 @@ public struct DashboardView: View {
                     }
                     .frame(height: 300)
                     .frame(maxWidth: .infinity)
-                    .background(Color(NSColor.windowBackgroundColor))
-                    .cornerRadius(12)
+                    .liquidGlass(radius: DT.Radius.lg)
                 } else {
                     // Сітка графіків
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
@@ -157,8 +156,7 @@ public struct DashboardView: View {
                             .frame(height: 200)
                         }
                         .padding()
-                        .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
-                        .cornerRadius(12)
+                        .liquidGlass(radius: DT.Radius.lg)
                         
                         // Топ папок
                         VStack(alignment: .leading, spacing: 12) {
@@ -176,8 +174,7 @@ public struct DashboardView: View {
                             .frame(height: 200)
                         }
                         .padding()
-                        .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
-                        .cornerRadius(12)
+                        .liquidGlass(radius: DT.Radius.lg)
                         
                         // Графік динаміки сортування
                         VStack(alignment: .leading, spacing: 12) {
@@ -207,8 +204,7 @@ public struct DashboardView: View {
                             .frame(height: 200)
                         }
                         .padding()
-                        .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
-                        .cornerRadius(12)
+                        .liquidGlass(radius: DT.Radius.lg)
                         
                         // Графік динаміки очищення
                         VStack(alignment: .leading, spacing: 12) {
@@ -245,8 +241,7 @@ public struct DashboardView: View {
                             }
                         }
                         .padding()
-                        .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
-                        .cornerRadius(12)
+                        .liquidGlass(radius: DT.Radius.lg)
                     }
                 }
             }
@@ -431,8 +426,6 @@ struct MetricCard: View {
             Spacer()
         }
         .padding()
-        .background(Color(NSColor.windowBackgroundColor))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .liquidGlass(radius: DT.Radius.lg)
     }
 }

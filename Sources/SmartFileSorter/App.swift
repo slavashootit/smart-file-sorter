@@ -20,13 +20,19 @@ struct SmartFileSorterApp: App {
     
     var body: some Scene {
         WindowGroup {
-            MainView()
-                .frame(minWidth: 960, idealWidth: 1050, minHeight: 620, idealHeight: 720)
-                .onOpenURL { url in
-                    if url.pathExtension == "sorterrule" {
-                        NotificationCenter.default.post(name: NSNotification.Name("ImportSorterRule"), object: url)
-                    }
+            ZStack {
+                DT.Color.appBg.ignoresSafeArea()
+                MeshBackground()
+                
+                MainView()
+            }
+            .preferredColorScheme(.dark)
+            .frame(minWidth: 960, idealWidth: 1050, minHeight: 620, idealHeight: 720)
+            .onOpenURL { url in
+                if url.pathExtension == "sorterrule" {
+                    NotificationCenter.default.post(name: NSNotification.Name("ImportSorterRule"), object: url)
                 }
+            }
         }
         .windowStyle(.hiddenTitleBar)
         

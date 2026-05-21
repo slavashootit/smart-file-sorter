@@ -105,9 +105,10 @@ struct TemplatesView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(NSLocalizedString("automationTemplates", comment: "Automation Templates"))
                         .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundColor(DT.Color.textPrimary)
                     Text(NSLocalizedString("templatesSubtitle", comment: "Ready-to-use rule configurations for standard workflows."))
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                 }
                 
                 Divider()
@@ -115,6 +116,7 @@ struct TemplatesView: View {
                 // Шаблони сітка
                 Text(NSLocalizedString("prebuiltTemplates", comment: "Pre-built Rule Packs"))
                     .font(.headline)
+                    .foregroundColor(DT.Color.textPrimary)
                 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 340))], spacing: 16) {
                     ForEach(templates) { template in
@@ -130,6 +132,7 @@ struct TemplatesView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(NSLocalizedString("ruleSharing", comment: "Import & Export Rules"))
                         .font(.headline)
+                        .foregroundColor(DT.Color.textPrimary)
                     
                     HStack(spacing: 16) {
                         Button(action: selectAndImportFile) {
@@ -138,7 +141,7 @@ struct TemplatesView: View {
                                 .padding(.horizontal, 12)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(.accentColor)
+                        .tint(DT.Color.accent)
                         
                         Button(action: exportAllActiveRules) {
                             Label(NSLocalizedString("exportRulesBtn", comment: "Export All Active Rules..."), systemImage: "square.and.arrow.up")
@@ -152,26 +155,26 @@ struct TemplatesView: View {
                 if showSuccessMessage {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(DT.Color.success)
                         Text(successText)
-                            .foregroundColor(.green)
+                            .foregroundColor(DT.Color.success)
                     }
                     .padding()
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(8)
+                    .background(DT.Color.successSoft)
+                    .cornerRadius(DT.Radius.md)
                     .transition(.opacity)
                 }
                 
                 if let err = errorMessage {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.red)
+                            .foregroundColor(DT.Color.danger)
                         Text(err)
-                            .foregroundColor(.red)
+                            .foregroundColor(DT.Color.danger)
                     }
                     .padding()
-                    .background(Color.red.opacity(0.1))
-                    .cornerRadius(8)
+                    .background(DT.Color.danger.opacity(0.1))
+                    .cornerRadius(DT.Radius.md)
                 }
             }
             .padding(24)
@@ -337,14 +340,12 @@ struct TemplateCard: View {
     let template: RuleTemplate
     let onImport: () -> Void
     
-    @State private var isHovering = false
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "folder.badge.gearshape")
                     .font(.title)
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(DT.Color.accent)
                 
                 Spacer()
                 
@@ -360,24 +361,16 @@ struct TemplateCard: View {
             
             Text(title)
                 .font(.headline)
+                .foregroundColor(DT.Color.textPrimary)
             
             Text(desc)
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(DT.Color.textSecondary)
                 .lineLimit(3)
         }
         .padding()
-        .background(VisualEffectView(material: .contentBackground, blendingMode: .withinWindow))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.accentColor.opacity(isHovering ? 0.4 : 0.1), lineWidth: 1)
-        )
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isHovering = hovering
-            }
-        }
+        .liquidGlass(radius: DT.Radius.lg)
+        .spotlightHover()
     }
 }
 
@@ -392,15 +385,16 @@ struct CollisionResolutionSheet: View {
         VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 40))
-                .foregroundColor(.orange)
+                .foregroundColor(DT.Color.warning)
             
             Text(NSLocalizedString("ruleConflictTitle", comment: "Rule Conflict Detected"))
                 .font(.title2)
                 .bold()
+                .foregroundColor(DT.Color.textPrimary)
             
             Text(String(format: NSLocalizedString("ruleConflictDesc", comment: "A rule with the name '%@' already exists. How would you like to resolve this?"), rule.name))
                 .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
+                .foregroundColor(DT.Color.textSecondary)
                 .padding(.horizontal)
             
             VStack(spacing: 8) {
@@ -409,7 +403,7 @@ struct CollisionResolutionSheet: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(DT.Color.danger)
                 
                 Button(action: onSaveAsCopy) {
                     Text(NSLocalizedString("saveAsCopyBtn", comment: "Keep Both (Import as Copy)"))

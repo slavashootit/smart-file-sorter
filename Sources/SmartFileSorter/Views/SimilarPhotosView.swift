@@ -62,11 +62,12 @@ public struct SimilarPhotosView: View {
                     Text("Схожі фотографії")
                         .font(.title2)
                         .fontWeight(.bold)
+                        .foregroundColor(DT.Color.textPrimary)
                     
                     HStack {
                         Text("Поріг схожості ( Vision AI ): \(String(format: "%.2f", displayThreshold))")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DT.Color.textSecondary)
                         Slider(value: $displayThreshold, in: 0.05...0.35, step: 0.01)
                             .frame(width: 150)
                             .onChange(of: displayThreshold) { newValue in
@@ -102,20 +103,21 @@ public struct SimilarPhotosView: View {
                         Text("Сканувати")
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.blue)
+                    .tint(DT.Color.accent)
                 }
             }
             .padding()
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.8))
+            .liquidGlass(radius: 0)
             
             if finder.isScanning {
                 VStack(spacing: 12) {
                     ProgressView(value: finder.progress)
                         .progressViewStyle(.linear)
+                        .shimmer()
                         .padding(.horizontal)
                     Text(finder.currentFile)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                         .lineLimit(1)
                 }
                 .padding()
@@ -124,12 +126,13 @@ public struct SimilarPhotosView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.system(size: 48))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textTertiary)
                     Text("Не знайдено схожих фотографій")
                         .font(.headline)
+                        .foregroundColor(DT.Color.textPrimary)
                     Text("Спробуйте збільшити поріг схожості або обрати іншу папку.")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -137,6 +140,7 @@ public struct SimilarPhotosView: View {
                 HStack {
                     Text("Знайдено груп схожих фото: \(finder.similarGroups.count) | Позначено для видалення: \(checkedFiles.count)")
                         .fontWeight(.semibold)
+                        .foregroundColor(DT.Color.textPrimary)
                     
                     Spacer()
                     
@@ -152,7 +156,7 @@ public struct SimilarPhotosView: View {
                     .disabled(checkedFiles.isEmpty)
                 }
                 .padding()
-                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                .background(DT.Color.glass)
                 
                 // Таблиця перегляду груп та попарного preview
                 HSplitView {
@@ -168,7 +172,7 @@ public struct SimilarPhotosView: View {
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
                                             .frame(width: 40, height: 40)
-                                            .cornerRadius(4)
+                                            .cornerRadius(DT.Radius.sm)
                                             .clipped()
                                     }
                                     
@@ -176,10 +180,12 @@ public struct SimilarPhotosView: View {
                                         Text(firstPhoto.lastPathComponent)
                                             .fontWeight(.semibold)
                                             .lineLimit(1)
+                                            .foregroundColor(DT.Color.textPrimary)
                                         Text("\(group.photos.count) схожих знімків")
                                             .font(.caption)
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DT.Color.textSecondary)
                                     }
+                                    
                                 }
                             }
                             .tag(group.id)
@@ -200,13 +206,13 @@ public struct SimilarPhotosView: View {
                                                     .resizable()
                                                     .aspectRatio(contentMode: .fit)
                                                     .frame(height: 180)
-                                                    .cornerRadius(8)
+                                                    .cornerRadius(DT.Radius.sm)
                                                     .shadow(radius: 2)
                                             } else {
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .fill(Color.gray.opacity(0.2))
+                                                RoundedRectangle(cornerRadius: DT.Radius.sm)
+                                                    .fill(DT.Color.glass)
                                                     .frame(height: 180)
-                                                    .overlay(Text("Помилка завантаження").font(.caption))
+                                                    .overlay(Text("Помилка завантаження").font(.caption).foregroundColor(DT.Color.textTertiary))
                                             }
                                             
                                             Toggle("", isOn: Binding(
@@ -221,8 +227,8 @@ public struct SimilarPhotosView: View {
                                             ))
                                             .toggleStyle(CheckboxToggleStyle())
                                             .padding(6)
-                                            .background(Color.white.opacity(0.8))
-                                            .cornerRadius(4)
+                                            .background(DT.Color.glassHover)
+                                            .cornerRadius(DT.Radius.sm)
                                             .padding(8)
                                         }
                                         
@@ -231,6 +237,7 @@ public struct SimilarPhotosView: View {
                                             .font(.caption)
                                             .fontWeight(.bold)
                                             .lineLimit(1)
+                                            .foregroundColor(DT.Color.textPrimary)
                                         
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text("Розмір: \(formatBytes(getFileSize(photoURL)))")
@@ -238,7 +245,7 @@ public struct SimilarPhotosView: View {
                                             Text("Змінено: \(formatDate(getFileDate(photoURL)))")
                                         }
                                         .font(.system(size: 10))
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(DT.Color.textSecondary)
                                         
                                         HStack {
                                             Button("Перегляд") {
@@ -253,8 +260,7 @@ public struct SimilarPhotosView: View {
                                         }
                                     }
                                     .padding(8)
-                                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                                    .cornerRadius(8)
+                                    .liquidGlass(radius: DT.Radius.md)
                                 }
                             }
                             .padding()
@@ -263,7 +269,7 @@ public struct SimilarPhotosView: View {
                     } else {
                         VStack {
                             Text("Оберіть групу фотографій для порівняння")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(DT.Color.textSecondary)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }

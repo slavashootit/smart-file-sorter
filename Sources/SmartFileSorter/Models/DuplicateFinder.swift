@@ -1,7 +1,8 @@
 import Foundation
 import CryptoKit
+import os
 
-public struct DuplicateGroup: Identifiable, Equatable {
+public struct DuplicateGroup: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let hash: String
     public let fileSize: Int64
@@ -15,7 +16,9 @@ public struct DuplicateGroup: Identifiable, Equatable {
     }
 }
 
-public final class DuplicateFinder: ObservableObject {
+public final class DuplicateFinder: ObservableObject, @unchecked Sendable {
+    public static let shared = DuplicateFinder()
+    
     @Published public var isScanning = false
     @Published public var progress: Double = 0.0
     @Published public var currentFile: String = ""
@@ -109,7 +112,6 @@ public final class DuplicateFinder: ObservableObject {
             }
             
             // 3. Перший прохід (Pass 1): Хешування 4KB початку + 4KB кінця
-            let lock = NSLock()
             var pass1Candidates: [URL] = []
             for (_, files) in sizeCandidates {
                 pass1Candidates.append(contentsOf: files)
@@ -120,19 +122,30 @@ public final class DuplicateFinder: ObservableObject {
             
             let maxConcurrentTasks = ProcessInfo.processInfo.activeProcessorCount
             
-            await withTaskGroup(of: Void.self) { group in
+            await withTaskGroup(of: (String, URL)?.self) { group in
                 var activeTasks = 0
                 for file in pass1Candidates {
                     if self.isCancelled { break }
                     
                     if activeTasks >= maxConcurrentTasks {
-                        _ = await group.next()
+                        if let result = await group.next() {
+                            if let (key, fileURL) = result {
+                                pass1Map[key, default: []].append(fileURL)
+                                completedCount += 1
+                                let currentProgress = (Double(completedCount) / Double(totalCandidatesCount)) * 0.5
+                                let filename = fileURL.lastPathComponent
+                                DispatchQueue.main.async {
+                                    self.progress = currentProgress
+                                    self.currentFile = "[Прохід 1] Аналіз: \(filename)"
+                                }
+                            }
+                        }
                         activeTasks -= 1
                     }
                     
                     activeTasks += 1
                     group.addTask {
-                        if self.isCancelled { return }
+                        if self.isCancelled { return nil }
                         
                         let size = (try? fileManager.attributesOfItem(atPath: file.path)[.size] as? Int64) ?? 0
                         let mtime = ((try? fileManager.attributesOfItem(atPath: file.path)[.modificationDate] as? Date)?.timeIntervalSince1970) ?? 0
@@ -151,23 +164,25 @@ public final class DuplicateFinder: ObservableObject {
                         
                         if let finalHash1 = hash1 {
                             let key = "\(size)-\(finalHash1)"
-                            
-                            lock.lock()
-                            pass1Map[key, default: []].append(file)
-                            completedCount += 1
-                            let currentProgress = (Double(completedCount) / Double(totalCandidatesCount)) * 0.5
-                            let filename = file.lastPathComponent
-                            DispatchQueue.main.async {
-                                self.progress = currentProgress
-                                self.currentFile = "[Прохід 1] Аналіз: \(filename)"
-                            }
-                            lock.unlock()
+                            return (key, file)
                         }
+                        return nil
                     }
                 }
                 
                 while activeTasks > 0 {
-                    _ = await group.next()
+                    if let result = await group.next() {
+                        if let (key, fileURL) = result {
+                            pass1Map[key, default: []].append(fileURL)
+                            completedCount += 1
+                            let currentProgress = (Double(completedCount) / Double(totalCandidatesCount)) * 0.5
+                            let filename = fileURL.lastPathComponent
+                            DispatchQueue.main.async {
+                                self.progress = currentProgress
+                                self.currentFile = "[Прохід 1] Аналіз: \(filename)"
+                            }
+                        }
+                    }
                     activeTasks -= 1
                 }
             }
@@ -193,7 +208,7 @@ public final class DuplicateFinder: ObservableObject {
             var pass2Map: [String: [URL]] = [:]
             var pass2CompletedCount = 0
             
-            await withTaskGroup(of: Void.self) { group in
+            await withTaskGroup(of: (String, URL)?.self) { group in
                 var activeTasks = 0
                 for (key, files) in pass2CandidatesMap {
                     if self.isCancelled { break }
@@ -205,13 +220,24 @@ public final class DuplicateFinder: ObservableObject {
                         if self.isCancelled { break }
                         
                         if activeTasks >= maxConcurrentTasks {
-                            _ = await group.next()
+                            if let result = await group.next() {
+                                if let (finalHash2, fileURL) = result {
+                                    pass2Map[finalHash2, default: []].append(fileURL)
+                                    pass2CompletedCount += 1
+                                    let currentProgress = 0.5 + ((Double(pass2CompletedCount) / Double(totalPass2Count)) * 0.5)
+                                    let filename = fileURL.lastPathComponent
+                                    DispatchQueue.main.async {
+                                        self.progress = currentProgress
+                                        self.currentFile = "[Прохід 2] Хешування: \(filename)"
+                                    }
+                                }
+                            }
                             activeTasks -= 1
                         }
                         
                         activeTasks += 1
                         group.addTask {
-                            if self.isCancelled { return }
+                            if self.isCancelled { return nil }
                             
                             let size = (try? fileManager.attributesOfItem(atPath: file.path)[.size] as? Int64) ?? 0
                             let mtime = ((try? fileManager.attributesOfItem(atPath: file.path)[.modificationDate] as? Date)?.timeIntervalSince1970) ?? 0
@@ -232,23 +258,26 @@ public final class DuplicateFinder: ObservableObject {
                             }
                             
                             if let finalHash2 = hash2 {
-                                lock.lock()
-                                pass2Map[finalHash2, default: []].append(file)
-                                pass2CompletedCount += 1
-                                let currentProgress = 0.5 + ((Double(pass2CompletedCount) / Double(totalPass2Count)) * 0.5)
-                                let filename = file.lastPathComponent
-                                DispatchQueue.main.async {
-                                    self.progress = currentProgress
-                                    self.currentFile = "[Прохід 2] Хешування: \(filename)"
-                                }
-                                lock.unlock()
+                                return (finalHash2, file)
                             }
+                            return nil
                         }
                     }
                 }
                 
                 while activeTasks > 0 {
-                    _ = await group.next()
+                    if let result = await group.next() {
+                        if let (finalHash2, fileURL) = result {
+                            pass2Map[finalHash2, default: []].append(fileURL)
+                            pass2CompletedCount += 1
+                            let currentProgress = 0.5 + ((Double(pass2CompletedCount) / Double(totalPass2Count)) * 0.5)
+                            let filename = fileURL.lastPathComponent
+                            DispatchQueue.main.async {
+                                self.progress = currentProgress
+                                self.currentFile = "[Прохід 2] Хешування: \(filename)"
+                            }
+                        }
+                    }
                     activeTasks -= 1
                 }
             }

@@ -13,7 +13,7 @@ public struct MenuBarView: View {
             HStack {
                 Text("Розумний сортувальник")
                     .font(.headline)
-                    .foregroundColor(.primary)
+                    .foregroundColor(DT.Color.textPrimary)
                 
                 Spacer()
                 
@@ -27,7 +27,7 @@ public struct MenuBarView: View {
                     }
                 }) {
                     Image(systemName: "macwindow")
-                        .foregroundColor(.blue)
+                        .foregroundColor(DT.Color.accent)
                 }
                 .buttonStyle(.plain)
             }
@@ -39,7 +39,7 @@ public struct MenuBarView: View {
             HStack {
                 Text("Профіль:")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DT.Color.textSecondary)
                 Spacer()
                 Picker("", selection: Binding(
                     get: { self.profileManager.activeProfile },
@@ -61,7 +61,7 @@ public struct MenuBarView: View {
                     viewModel.isPaused ? "Моніторинг зупинено" : "Моніторинг активний",
                     systemImage: viewModel.isPaused ? "play.circle.fill" : "pause.circle.fill"
                 )
-                .foregroundColor(viewModel.isPaused ? .orange : .green)
+                .foregroundColor(viewModel.isPaused ? DT.Color.warning : DT.Color.success)
                 
                 Spacer()
                 
@@ -76,22 +76,23 @@ public struct MenuBarView: View {
             
             Text("Папки під моніторингом (\(viewModel.watchedFolders.count)/5):")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(DT.Color.textSecondary)
             
             if viewModel.watchedFolders.isEmpty {
                 Text("Жодної папки не додано")
                     .font(.callout)
                     .italic()
-                    .foregroundColor(.gray)
+                    .foregroundColor(DT.Color.textTertiary)
                     .padding(.vertical, 5)
             } else {
                 ForEach(viewModel.watchedFolders, id: \.self) { path in
                     HStack {
                         Image(systemName: "folder")
-                            .foregroundColor(.blue)
+                            .foregroundColor(DT.Color.accent)
                         Text(URL(fileURLWithPath: path).lastPathComponent)
                             .font(.callout)
                             .lineLimit(1)
+                            .foregroundColor(DT.Color.textPrimary)
                         
                         Spacer()
                         
@@ -99,7 +100,7 @@ public struct MenuBarView: View {
                             viewModel.removeFolder(path: path)
                         }) {
                             Image(systemName: "xmark.circle")
-                                .foregroundColor(.red)
+                                .foregroundColor(DT.Color.danger)
                         }
                         .buttonStyle(.plain)
                     }
@@ -112,11 +113,12 @@ public struct MenuBarView: View {
                 NSApp.terminate(nil)
             }) {
                 Label("Вийти з програми", systemImage: "power")
-                    .foregroundColor(.red)
+                    .foregroundColor(DT.Color.danger)
             }
             .buttonStyle(.plain)
         }
         .padding(12)
         .frame(width: 260)
+        .liquidGlass(radius: DT.Radius.md)
     }
 }

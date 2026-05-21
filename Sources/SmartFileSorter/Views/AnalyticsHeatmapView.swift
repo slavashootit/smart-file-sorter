@@ -70,7 +70,7 @@ struct AnalyticsHeatmapView: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .liquidGlass(cornerRadius: 12)
+                    .liquidGlass(radius: DT.Radius.lg)
                     
                     // Heatmap card
                     VStack(alignment: .leading, spacing: 12) {
@@ -100,7 +100,7 @@ struct AnalyticsHeatmapView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .frame(maxWidth: .infinity)
-                    .liquidGlass(cornerRadius: 12)
+                    .liquidGlass(radius: DT.Radius.lg)
                 }
                 .padding(.horizontal)
                 
@@ -157,7 +157,7 @@ struct AnalyticsHeatmapView: View {
                     .padding(.vertical, 8)
                 }
                 .padding()
-                .liquidGlass(cornerRadius: 12)
+                .liquidGlass(radius: DT.Radius.lg)
                 .padding(.horizontal)
             }
         }
@@ -214,7 +214,7 @@ struct AnalyticsHeatmapView: View {
         }
     }
     
-    private static func extractDomain(from url: URL) -> String? {
+    nonisolated private static func extractDomain(from url: URL) -> String? {
         let itemRef = MDItemCreate(nil, url.path as CFString)
         if let mdItem = itemRef,
            let values = MDItemCopyAttribute(mdItem, kMDItemWhereFroms) as? [String],

@@ -89,6 +89,10 @@ struct SunburstChartView: View {
                 }
             }
             .padding()
+            .background(
+                VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+                    .liquidGlass(radius: 0)
+            )
             
             Divider()
             
@@ -217,12 +221,16 @@ struct SunburstChartView: View {
                 .overlay(tooltipOverlay)
             } else {
                 VStack {
-                    Image(systemName: "chart.pie.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.secondary)
-                        .padding()
-                    Text("Виберіть та проаналізуйте папку для побудови карти диска.")
-                        .foregroundColor(.secondary)
+                    VStack {
+                        Image(systemName: "chart.pie.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.secondary)
+                            .padding()
+                        Text("Виберіть та проаналізуйте папку для побудови карти диска.")
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .liquidGlass(radius: DT.Radius.lg)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -249,9 +257,7 @@ struct SunburstChartView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(8)
-                .background(VisualEffectView(material: .hudWindow, blendingMode: .withinWindow))
-                .cornerRadius(6)
-                .shadow(radius: 4)
+                .liquidGlass(radius: DT.Radius.sm)
                 .position(x: 210, y: 340) // Anchor tooltip in a clean fixed location on bottom of visualizer
             }
         }

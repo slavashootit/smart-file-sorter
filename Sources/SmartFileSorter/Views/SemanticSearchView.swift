@@ -49,15 +49,15 @@ struct SemanticSearchView: View {
                 }
             }
             .padding()
-            
-            Divider()
+            .liquidGlass(radius: 0)
             
             if isSearching {
                 VStack(spacing: 16) {
                     ProgressView(value: progress)
+                        .shimmer()
                         .frame(width: 300)
                     Text(statusText)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                         .font(.caption)
                         .lineLimit(1)
                 }
@@ -66,13 +66,13 @@ struct SemanticSearchView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 48))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                     Text("Нічого не знайдено за запитом «\(queryText)»")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                     Text("Спробуйте інші англійські ключові слова: cat, dog, beach, food, person, car, sky, tree...")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textTertiary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                 }
@@ -81,14 +81,14 @@ struct SemanticSearchView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 60))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.accent)
                         .padding()
                     Text("Семантичний пошук фотографій")
                         .font(.headline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textPrimary)
                     Text("Введіть англійський текстовий запит. Vision AI розпізнає об'єкти на зображеннях.")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                     
@@ -96,7 +96,7 @@ struct SemanticSearchView: View {
                         Text("Приклади запитів:").font(.caption).bold()
                         Text("cat · dog · beach · sunset · food · car · person · flower · sky · tree · building")
                             .font(.caption)
-                            .foregroundColor(.blue)
+                            .foregroundColor(DT.Color.accentStrong)
                     }
                     .padding(.top, 8)
                 }
@@ -107,11 +107,12 @@ struct SemanticSearchView: View {
                     HStack {
                         Text("Знайдено результатів: \(searchResults.count)")
                             .fontWeight(.semibold)
+                            .foregroundColor(DT.Color.textPrimary)
                         Spacer()
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                    .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                    .background(DT.Color.glass)
                     
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: 16) {
@@ -129,31 +130,32 @@ struct SemanticSearchView: View {
                                             .scaledToFill()
                                             .frame(height: 120)
                                             .clipped()
-                                            .cornerRadius(8)
+                                            .cornerRadius(DT.Radius.sm)
                                     } else {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(Color.secondary.opacity(0.2))
+                                        RoundedRectangle(cornerRadius: DT.Radius.sm)
+                                            .fill(DT.Color.glass)
                                             .frame(height: 120)
-                                            .overlay(Image(systemName: "photo").foregroundColor(.secondary))
+                                            .overlay(Image(systemName: "photo").foregroundColor(DT.Color.textTertiary))
                                     }
                                     
                                     Text(item.url.lastPathComponent)
                                         .font(.caption)
                                         .lineLimit(1)
                                         .bold()
+                                        .foregroundColor(DT.Color.textPrimary)
                                     
                                     // Show matched labels
                                     if !item.labels.isEmpty {
                                         Text(item.labels.prefix(5).joined(separator: ", "))
                                             .font(.system(size: 9))
-                                            .foregroundColor(.blue)
+                                            .foregroundColor(DT.Color.accentStrong)
                                             .lineLimit(2)
                                     }
                                     
                                     HStack {
                                         Text(String(format: "Впевненість: %.0f%%", item.similarity * 100))
                                             .font(.caption2)
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(DT.Color.textSecondary)
                                         
                                         Spacer()
                                         
@@ -167,8 +169,7 @@ struct SemanticSearchView: View {
                                     }
                                 }
                                 .padding(8)
-                                .background(Color.primary.opacity(0.04))
-                                .cornerRadius(12)
+                                .liquidGlass(radius: DT.Radius.md)
                             }
                         }
                         .padding()

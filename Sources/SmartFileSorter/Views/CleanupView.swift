@@ -89,7 +89,10 @@ public struct CleanupView: View {
                 }
             }
             .padding()
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.8))
+            .background(
+                VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+                    .liquidGlass(radius: 0)
+            )
             
             // Основний контент
             if manager.isScanning {
@@ -245,7 +248,7 @@ public struct CleanupView: View {
                             
                             let info = await Task.detached(priority: .userInitiated) { () -> VideoMetadata? in
                                 let asset = AVURLAsset(url: item.url)
-                                let duration = asset.duration
+                                guard let duration = try? await asset.load(.duration) else { return nil }
                                 let durationSeconds = CMTimeGetSeconds(duration)
                                 guard !durationSeconds.isNaN, durationSeconds > 0 else { return nil }
                                 
@@ -253,11 +256,12 @@ public struct CleanupView: View {
                                 let seconds = Int(durationSeconds) % 60
                                 let durationStr = String(format: "%d:%02d", minutes, seconds)
                                 
-                                if let track = asset.tracks(withMediaType: .video).first {
-                                    let size = track.naturalSize
-                                    let width = Int(size.width)
-                                    let height = Int(size.height)
-                                    return VideoMetadata(width: width, height: height, duration: durationStr)
+                                if let track = try? await asset.loadTracks(withMediaType: .video).first {
+                                    if let size = try? await track.load(.naturalSize) {
+                                        let width = Int(size.width)
+                                        let height = Int(size.height)
+                                        return VideoMetadata(width: width, height: height, duration: durationStr)
+                                    }
                                 }
                                 return VideoMetadata(width: nil, height: nil, duration: durationStr)
                             }.value
@@ -351,7 +355,7 @@ public struct CleanupView: View {
                             
                             let info = await Task.detached(priority: .userInitiated) { () -> VideoMetadata? in
                                 let asset = AVURLAsset(url: item.url)
-                                let duration = asset.duration
+                                guard let duration = try? await asset.load(.duration) else { return nil }
                                 let durationSeconds = CMTimeGetSeconds(duration)
                                 guard !durationSeconds.isNaN, durationSeconds > 0 else { return nil }
                                 
@@ -359,11 +363,12 @@ public struct CleanupView: View {
                                 let seconds = Int(durationSeconds) % 60
                                 let durationStr = String(format: "%d:%02d", minutes, seconds)
                                 
-                                if let track = asset.tracks(withMediaType: .video).first {
-                                    let size = track.naturalSize
-                                    let width = Int(size.width)
-                                    let height = Int(size.height)
-                                    return VideoMetadata(width: width, height: height, duration: durationStr)
+                                if let track = try? await asset.loadTracks(withMediaType: .video).first {
+                                    if let size = try? await track.load(.naturalSize) {
+                                        let width = Int(size.width)
+                                        let height = Int(size.height)
+                                        return VideoMetadata(width: width, height: height, duration: durationStr)
+                                    }
                                 }
                                 return VideoMetadata(width: nil, height: nil, duration: durationStr)
                             }.value
@@ -438,43 +443,47 @@ public struct CleanupView: View {
     
     // Вкладка "Налаштування Смітника"
     private var trashConfigTab: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Автоматичне очищення Смітника")
-                .font(.headline)
-            
-            Toggle("Автоматично видаляти елементи зі Смітника старше N днів", isOn: $autoPurgeTrash)
-                .toggleStyle(SwitchToggleStyle())
-            
-            if autoPurgeTrash {
-                HStack {
-                    Text("Видаляти файли старші за")
-                    Picker("", selection: $autoPurgeTrashDays) {
-                        Text("15 днів").tag(15)
-                        Text("30 днів").tag(30)
-                        Text("60 днів").tag(60)
-                        Text("90 днів").tag(90)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Автоматичне очищення Смітника")
+                        .font(.headline)
+                        .foregroundColor(DT.Color.textPrimary)
+                    
+                    Toggle("Автоматично видаляти елементи зі Смітника старше N днів", isOn: $autoPurgeTrash)
+                        .toggleStyle(SwitchToggleStyle())
+                    
+                    if autoPurgeTrash {
+                        HStack {
+                            Text("Видаляти файли старші за")
+                            Picker("", selection: $autoPurgeTrashDays) {
+                                Text("15 днів").tag(15)
+                                Text("30 днів").tag(30)
+                                Text("60 днів").tag(60)
+                                Text("90 днів").tag(90)
+                            }
+                            .frame(width: 150)
+                        }
                     }
-                    .frame(width: 150)
+                    
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    Button("Очистити Смітник зараз вручну") {
+                        let deletedCount = manager.purgeTrashItems(olderThanDays: autoPurgeTrashDays)
+                        activeAlert = AlertInfo(
+                            title: "Смітник очищено",
+                            message: "Видалено елементів зі Смітника: \(deletedCount)"
+                        )
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.orange)
                 }
+                .padding()
+                .liquidGlass(radius: DT.Radius.lg)
             }
-            
-            Divider()
-                .padding(.vertical)
-            
-            Button("Очистити Смітник зараз вручну") {
-                let deletedCount = manager.purgeTrashItems(olderThanDays: autoPurgeTrashDays)
-                activeAlert = AlertInfo(
-                    title: "Смітник очищено",
-                    message: "Видалено елементів зі Смітника: \(deletedCount)"
-                )
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.orange)
-            
-            Spacer()
+            .padding()
         }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
     
     // Хелпери

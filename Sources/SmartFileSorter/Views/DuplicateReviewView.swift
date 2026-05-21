@@ -47,7 +47,7 @@ public struct DuplicateReviewView: View {
         return NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
     }
 
-    @StateObject private var finder = DuplicateFinder()
+    @StateObject private var finder = DuplicateFinder.shared
     @State private var scanPath: String = NSHomeDirectory() + "/Downloads"
     @State private var selectedGroupId: UUID? = nil
     @State private var checkedFiles: Set<URL> = []
@@ -94,7 +94,7 @@ public struct DuplicateReviewView: View {
                 }
             }
             .padding()
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.8))
+            .liquidGlass(radius: 0)
             
             if finder.isScanning {
                 VStack(spacing: 12) {
@@ -150,7 +150,7 @@ public struct DuplicateReviewView: View {
                     .disabled(checkedFiles.isEmpty)
                 }
                 .padding()
-                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                .liquidGlass(radius: 0)
                 
                 // Основна таблиця
                 HSplitView {
@@ -237,7 +237,7 @@ public struct DuplicateReviewView: View {
                                         
                                         let info = await Task.detached(priority: .userInitiated) { () -> VideoMetadata? in
                                             let asset = AVURLAsset(url: file)
-                                            let duration = asset.duration
+                                            guard let duration = try? await asset.load(.duration) else { return nil }
                                             let durationSeconds = CMTimeGetSeconds(duration)
                                             guard !durationSeconds.isNaN, durationSeconds > 0 else { return nil }
                                             
@@ -245,11 +245,12 @@ public struct DuplicateReviewView: View {
                                             let seconds = Int(durationSeconds) % 60
                                             let durationStr = String(format: "%d:%02d", minutes, seconds)
                                             
-                                            if let track = asset.tracks(withMediaType: .video).first {
-                                                let size = track.naturalSize
-                                                let width = Int(size.width)
-                                                let height = Int(size.height)
-                                                return VideoMetadata(width: width, height: height, duration: durationStr)
+                                            if let track = try? await asset.loadTracks(withMediaType: .video).first {
+                                                if let size = try? await track.load(.naturalSize) {
+                                                    let width = Int(size.width)
+                                                    let height = Int(size.height)
+                                                    return VideoMetadata(width: width, height: height, duration: durationStr)
+                                                }
                                             }
                                             return VideoMetadata(width: nil, height: nil, duration: durationStr)
                                         }.value

@@ -12,7 +12,7 @@ struct OnboardingView: View {
             HStack(spacing: 8) {
                 ForEach(0..<4) { idx in
                     Circle()
-                        .fill(step == idx ? Color.accentColor : Color.secondary.opacity(0.3))
+                        .fill(step == idx ? DT.Color.accent : DT.Color.textTertiary.opacity(0.3))
                         .frame(width: 8, height: 8)
                 }
             }
@@ -25,16 +25,17 @@ struct OnboardingView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 64))
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(DT.Color.accent)
                     
                     Text("Ласкаво просимо до Smart File Sorter v2.0")
                         .font(.title)
                         .fontWeight(.bold)
+                        .foregroundColor(DT.Color.textPrimary)
                         .multilineTextAlignment(.center)
                     
                     Text("Ваш інтелектуальний помічник на базі ШІ для автоматичного прибирання диска в реальному часі.")
                         .font(.body)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                         .multilineTextAlignment(.center)
                         .frame(width: 380)
                 }
@@ -43,11 +44,12 @@ struct OnboardingView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "questionmark.folder")
                         .font(.system(size: 64))
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(DT.Color.accent)
                     
                     Text("Які файли ви завантажуєте найчастіше?")
                         .font(.title2)
                         .fontWeight(.bold)
+                        .foregroundColor(DT.Color.textPrimary)
                     
                     Picker("", selection: $mostDownloaded) {
                         Text("Документи та PDF").tag("documents")
@@ -63,14 +65,15 @@ struct OnboardingView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "lock.shield")
                         .font(.system(size: 64))
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(DT.Color.accent)
                     
                     Text("Дозвіл на доступ до папки")
                         .font(.title2)
                         .fontWeight(.bold)
+                        .foregroundColor(DT.Color.textPrimary)
                     
                     Text("Sorter буде стежити за вибраною папкою та автоматично впорядковувати її.")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                         .multilineTextAlignment(.center)
                         .frame(width: 320)
                     
@@ -90,14 +93,15 @@ struct OnboardingView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 64))
-                        .foregroundColor(.green)
+                        .foregroundColor(DT.Color.success)
                     
                     Text("Все готово до роботи!")
                         .font(.title2)
                         .fontWeight(.bold)
+                        .foregroundColor(DT.Color.textPrimary)
                     
                     Text("Ми автоматично створили перше правило на основі ваших уподобань.")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(DT.Color.textSecondary)
                         .multilineTextAlignment(.center)
                         .frame(width: 320)
                 }
@@ -127,11 +131,14 @@ struct OnboardingView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(DT.Color.accent)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }
+        .padding()
         .frame(width: 500, height: 420)
+        .liquidGlass(radius: DT.Radius.xl)
     }
     
     private func selectFolder() {

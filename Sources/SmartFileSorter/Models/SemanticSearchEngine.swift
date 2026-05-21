@@ -81,7 +81,7 @@ public class SemanticSearchEngine: ObservableObject {
             return []
         }
         
-        guard let observations = request.results as? [VNClassificationObservation] else {
+        guard let observations = request.results else {
             return []
         }
         
