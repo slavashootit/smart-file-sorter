@@ -6,6 +6,19 @@
     <description>Most recent updates to Smart File Sorter.</description>
     <language>uk</language>
     <item>
+      <title>Version 1.6.0 (Polish)</title>
+      <sparkle:releaseNotesLink>
+        https://github.com/slavashootit/smart-file-sorter/releases/tag/v1.6.0
+      </sparkle:releaseNotesLink>
+      <pubDate>Wed, 21 May 2026 17:45:00 +0300</pubDate>
+      <enclosure url="https://github.com/slavashootit/smart-file-sorter/releases/download/v1.6.0/SmartFileSorter.dmg"
+                 sparkle:version="1.6.0"
+                 sparkle:shortVersionString="1.6.0"
+                 length="5440455"
+                 type="application/octet-stream"
+                 sparkle:edSignature="PLACEHOLDER_SIGNATURE_PLEASE_REPLACE_WITH_YOUR_KEY"/>
+    </item>
+    <item>
       <title>Version 1.5.0 (Visual Identity)</title>
       <sparkle:releaseNotesLink>
         https://github.com/slavashootit/smart-file-sorter/releases/tag/v1.5.0
