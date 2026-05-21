@@ -10,7 +10,7 @@ final class CleanupTests: XCTestCase {
         try super.setUpWithError()
         // Створюємо унікальну тимчасову папку для тестів
         let tempDir = FileManager.default.temporaryDirectory
-        tempDirectoryURL = tempDir.appendingPathComponent("SmartFileSorterCleanupTests_\(UUID().uuidString)")
+        tempDirectoryURL = tempDir.appendingPathComponent("SmartFileSorterCleanupTests_\(UUID().uuidString)").resolvingSymlinksInPath()
         try FileManager.default.createDirectory(at: tempDirectoryURL, withIntermediateDirectories: true, attributes: nil)
         
         // Exclude /private from excluded paths for testing, as temp directories on macOS are in /private
@@ -70,9 +70,10 @@ final class CleanupTests: XCTestCase {
             XCTAssertEqual(finder.duplicateGroups.count, 1)
             if let group = finder.duplicateGroups.first {
                 XCTAssertEqual(group.files.count, 2)
-                XCTAssertTrue(group.files.contains(fileA))
-                XCTAssertTrue(group.files.contains(fileB))
-                XCTAssertFalse(group.files.contains(fileC))
+                let groupPaths = group.files.map { $0.resolvingSymlinksInPath().path }
+                XCTAssertTrue(groupPaths.contains(fileA.resolvingSymlinksInPath().path))
+                XCTAssertTrue(groupPaths.contains(fileB.resolvingSymlinksInPath().path))
+                XCTAssertFalse(groupPaths.contains(fileC.resolvingSymlinksInPath().path))
             }
             expectation.fulfill()
         }
@@ -98,7 +99,9 @@ final class CleanupTests: XCTestCase {
         // Шукаємо файли розміром більше 1 МБ
         manager.scanLargeFiles(at: tempDirectoryURL.path, minSizeMB: 1) {
             XCTAssertEqual(manager.largeFiles.count, 1)
-            XCTAssertEqual(manager.largeFiles.first?.url, largeFile)
+            if let firstLargeFile = manager.largeFiles.first {
+                XCTAssertEqual(firstLargeFile.url.resolvingSymlinksInPath().path, largeFile.resolvingSymlinksInPath().path)
+            }
             expectation.fulfill()
         }
         
@@ -126,11 +129,11 @@ final class CleanupTests: XCTestCase {
         let expectation = XCTestExpectation(description: "Scan empty folders completion")
         
         manager.scanEmptyFolders(at: tempDirectoryURL.path) {
-            let paths = manager.emptyFolders.map { $0.url.path }
-            XCTAssertTrue(paths.contains(emptyFolder.path))
-            XCTAssertTrue(paths.contains(nestedEmptyFolderParent.path))
-            XCTAssertFalse(paths.contains(nonEmptyFolder.path))
-            XCTAssertFalse(paths.contains(someFile.path))
+            let paths = manager.emptyFolders.map { $0.url.resolvingSymlinksInPath().path }
+            XCTAssertTrue(paths.contains(emptyFolder.resolvingSymlinksInPath().path))
+            XCTAssertTrue(paths.contains(nestedEmptyFolderParent.resolvingSymlinksInPath().path))
+            XCTAssertFalse(paths.contains(nonEmptyFolder.resolvingSymlinksInPath().path))
+            XCTAssertFalse(paths.contains(someFile.resolvingSymlinksInPath().path))
             expectation.fulfill()
         }
         

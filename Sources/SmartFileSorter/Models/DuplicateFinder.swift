@@ -365,24 +365,6 @@ public final class DuplicateFinder: ObservableObject, @unchecked Sendable {
     }
     
     private func shouldExclude(path: String) -> Bool {
-        if path.hasPrefix("/System") || path.hasPrefix("/Library") || path.hasPrefix("/private") ||
-           path.hasPrefix("/usr") || path.hasPrefix("/bin") || path.hasPrefix("/sbin") {
-            return true
-        }
-        
-        let homeDir = NSHomeDirectory()
-        if path.hasPrefix("\(homeDir)/Library") || path.hasPrefix("\(homeDir)/.Trash") {
-            return true
-        }
-        
-        let pathComponents = URL(fileURLWithPath: path).pathComponents
-        for component in pathComponents {
-            let compLower = component.lowercased()
-            if compLower == ".git" || compLower == "node_modules" || compLower == ".trash" ||
-               compLower == "timemachine.backupdb" || compLower.hasSuffix(".backupbundle") || compLower.hasSuffix(".backupdb") {
-                return true
-            }
-        }
-        return false
+        return ConfigManager.shared.shouldExclude(url: URL(fileURLWithPath: path))
     }
 }
