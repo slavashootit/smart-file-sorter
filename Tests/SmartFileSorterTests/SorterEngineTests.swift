@@ -82,7 +82,7 @@ final class SorterEngineTests: XCTestCase {
         var finalLogs: [String] = []
         for await progress in stream {
             if progress.isFinished {
-                finalLogs = progress.finalLogs
+                finalLogs = progress.finalLogs ?? []
             }
         }
         return finalLogs
