@@ -315,6 +315,25 @@ public class HistoryManager: ObservableObject {
     
     public static let shared = HistoryManager()
     
+    public func setDatabasePath(_ path: String) {
+        dbLock.lock()
+        db = nil
+        do {
+            let fileManager = FileManager.default
+            let dir = URL(fileURLWithPath: path).deletingLastPathComponent()
+            if !fileManager.fileExists(atPath: dir.path) {
+                try fileManager.createDirectory(at: dir, withIntermediateDirectories: true, attributes: nil)
+            }
+            db = try SQLiteHistoryDatabase(path: path)
+            try db?.createTables()
+            print("[HISTORY] Реініціалізовано базу даних SQLite за новим шляхом: \(path)")
+        } catch {
+            print("[HISTORY] Помилка реініціалізації SQLite за шляхом \(path): \(error.localizedDescription)")
+        }
+        dbLock.unlock()
+        loadHistoryFromDB()
+    }
+    
     @Published private var batches: [BatchRecord] = []
     
     private var db: SQLiteHistoryDatabase?

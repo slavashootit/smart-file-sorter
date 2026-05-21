@@ -16,6 +16,11 @@ final class SorterEngineTests: XCTestCase {
         tempDirectoryURL = tempDir.appendingPathComponent("SmartFileSorterEngineTests_\(UUID().uuidString)")
         sandboxURL = tempDirectoryURL.appendingPathComponent("test_sandbox")
         try fileManager.createDirectory(at: sandboxURL, withIntermediateDirectories: true)
+        
+        // Isolate database for this test to avoid locks/races
+        let dbURL = tempDirectoryURL.appendingPathComponent("history.db")
+        HistoryManager.shared.setDatabasePath(dbURL.path)
+        
         engine = SorterEngine.shared
         
         // Clear previous history
@@ -255,7 +260,10 @@ final class SorterEngineTests: XCTestCase {
         // Очікуємо події протягом 3 секунд (латенція стріму 1.0 сек)
         let result = XCTWaiter.wait(for: [expectation], timeout: 5.0)
         XCTAssertEqual(result, .completed, "FSEventsWatcher не зафіксував додавання файлу")
-        XCTAssertTrue(receivedPaths.contains(triggerFile.path), "Отримані події мають містити шлях створеного файлу")
+        
+        let normalizedReceived = receivedPaths.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path }
+        let normalizedTrigger = triggerFile.resolvingSymlinksInPath().path
+        XCTAssertTrue(normalizedReceived.contains(normalizedTrigger), "Отримані події мають містити шлях створеного файлу")
         
         // Тестування призупинення
         watcher.pauseAll()
