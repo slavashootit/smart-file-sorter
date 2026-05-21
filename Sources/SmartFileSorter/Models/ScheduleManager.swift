@@ -3,6 +3,7 @@ import Foundation
 public class ScheduleManager {
     public static let shared = ScheduleManager()
     
+    private let queue = DispatchQueue(label: "com.smartfilesorter.scheduleQueue")
     private var scheduler: NSBackgroundActivityScheduler?
     
     public init() {
@@ -10,38 +11,43 @@ public class ScheduleManager {
     }
     
     public func setupScheduler() {
-        // Зупиняємо попередній планувальник якщо він був запущений
-        scheduler?.invalidate()
-        
-        let intervalString = UserDefaults.standard.string(forKey: "schedule_interval") ?? "daily"
-        if intervalString == "none" {
-            print("[SCHEDULER] Фоновий запуск відключено")
-            return
-        }
-        
-        let activity = NSBackgroundActivityScheduler(identifier: "com.smartfilesorter.scheduler")
-        activity.repeats = true
-        
-        // Конвертуємо інтервал у секунди
-        var interval: TimeInterval = 24 * 60 * 60 // daily
-        if intervalString == "hourly" {
-            interval = 60 * 60
-        } else if intervalString == "weekly" {
-            interval = 7 * 24 * 60 * 60
-        }
-        
-        activity.interval = interval
-        activity.tolerance = interval * 0.1 // 10% допуск для оптимізації ОС
-        
-        activity.schedule { [weak self] completion in
-            print("[SCHEDULER] Запуск фонового сканування за розкладом...")
-            self?.runScheduledSorting {
-                completion(.finished)
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Зупиняємо попередній планувальник якщо він був запущений
+            self.scheduler?.invalidate()
+            
+            let intervalString = UserDefaults.standard.string(forKey: "schedule_interval") ?? "daily"
+            if intervalString == "none" {
+                print("[SCHEDULER] Фоновий запуск відключено")
+                self.scheduler = nil
+                return
             }
+            
+            let activity = NSBackgroundActivityScheduler(identifier: "com.smartfilesorter.scheduler")
+            activity.repeats = true
+            
+            // Конвертуємо інтервал у секунди
+            var interval: TimeInterval = 24 * 60 * 60 // daily
+            if intervalString == "hourly" {
+                interval = 60 * 60
+            } else if intervalString == "weekly" {
+                interval = 7 * 24 * 60 * 60
+            }
+            
+            activity.interval = interval
+            activity.tolerance = interval * 0.1 // 10% допуск для оптимізації ОС
+            
+            activity.schedule { completion in
+                print("[SCHEDULER] Запуск фонового сканування за розкладом...")
+                self.runScheduledSorting {
+                    completion(.finished)
+                }
+            }
+            
+            self.scheduler = activity
+            print("[SCHEDULER] Налаштовано розклад: \(intervalString) (інтервал: \(interval) сек)")
         }
-        
-        self.scheduler = activity
-        print("[SCHEDULER] Налаштовано розклад: \(intervalString) (інтервал: \(interval) сек)")
     }
     
     public func runScheduledSorting(completion: @escaping () -> Void) {

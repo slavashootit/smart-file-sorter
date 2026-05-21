@@ -7,7 +7,24 @@ struct SemanticSearchView: View {
     @State private var searchPath: String = NSHomeDirectory() + "/Downloads"
     @State private var searchResults: [SearchResultItem] = []
     @State private var isSearching = false
-    @State private var isCancelled = false
+    private class CancellationToken {
+        private let lock = NSLock()
+        private var _isCancelled = false
+        
+        var isCancelled: Bool {
+            get {
+                lock.lock()
+                defer { lock.unlock() }
+                return _isCancelled
+            }
+            set {
+                lock.lock()
+                defer { lock.unlock() }
+                _isCancelled = newValue
+            }
+        }
+    }
+    @State private var activeCancellation: CancellationToken? = nil
     @State private var statusText: String = ""
     @State private var progress: Double = 0.0
     
@@ -36,7 +53,9 @@ struct SemanticSearchView: View {
                 
                 if isSearching {
                     Button("Скасувати") {
-                        isCancelled = true
+                        activeCancellation?.isCancelled = true
+                        isSearching = false
+                        statusText = "Пошук скасовано"
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
@@ -194,13 +213,15 @@ struct SemanticSearchView: View {
     private func performSearch() {
         guard !queryText.isEmpty else { return }
         isSearching = true
-        isCancelled = false
         searchResults = []
         progress = 0.0
         statusText = "Пошук зображень..."
         
         let pathURL = URL(fileURLWithPath: searchPath)
         let query = queryText
+        
+        let token = CancellationToken()
+        self.activeCancellation = token
         
         DispatchQueue.global(qos: .userInitiated).async {
             let fileManager = FileManager.default
@@ -210,6 +231,7 @@ struct SemanticSearchView: View {
             let allowedExtensions = Set(["png", "jpg", "jpeg", "heic"])
             
             while let fileURL = enumerator?.nextObject() as? URL {
+                if token.isCancelled { return }
                 let ext = fileURL.pathExtension.lowercased()
                 if allowedExtensions.contains(ext) {
                     imageURLs.append(fileURL)
@@ -229,10 +251,8 @@ struct SemanticSearchView: View {
             var processedCount = 0
             var lastProgressUpdate = Date()
             
-            // Process sequentially on this background thread — no semaphores, no deadlocks
-            // Vision is already GPU-accelerated, adding thread parallelism causes contention
             for url in imageURLs {
-                if self.isCancelled { break }
+                if token.isCancelled { break }
                 
                 // Synchronous classification — safe on background thread
                 let labels = self.searchEngine.classifyImageSync(at: url)
@@ -252,18 +272,24 @@ struct SemanticSearchView: View {
                     let filename = url.lastPathComponent
                     let count = processedCount
                     DispatchQueue.main.async {
-                        self.progress = currentProgress
-                        self.statusText = "Vision AI: \(filename) (\(count)/\(totalCount))"
+                        if !token.isCancelled {
+                            self.progress = currentProgress
+                            self.statusText = "Vision AI: \(filename) (\(count)/\(totalCount))"
+                        }
                     }
                 }
             }
             
+            if token.isCancelled { return }
+            
             matchedItems.sort { $0.similarity > $1.similarity }
             
             DispatchQueue.main.async {
-                self.searchResults = matchedItems
-                self.isSearching = false
-                self.statusText = "done"
+                if !token.isCancelled {
+                    self.searchResults = matchedItems
+                    self.isSearching = false
+                    self.statusText = "done"
+                }
             }
         }
     }
