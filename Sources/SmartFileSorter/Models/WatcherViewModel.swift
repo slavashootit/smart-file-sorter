@@ -1,12 +1,11 @@
 import Foundation
-import Combine
 import UserNotifications
 
 public class WatcherViewModel: ObservableObject {
     @Published public var watchedFolders: [String] = []
     @Published public var isPaused: Bool = false
     
-    private var cancellables = Set<AnyCancellable>()
+
     
     public init() {
         FSEventsWatcher.shared.restoreAllWatchedFolders()
@@ -16,14 +15,6 @@ public class WatcherViewModel: ObservableObject {
         FSEventsWatcher.shared.onEvents = { [weak self] paths in
             self?.handleFileEvents(paths)
         }
-        
-        ProfileManager.shared.$activeProfile
-            .dropFirst()
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.watchedFolders = FSEventsWatcher.shared.getWatchedPaths()
-            }
-            .store(in: &cancellables)
     }
     
     public func addFolder(path: String) {
@@ -78,8 +69,7 @@ public class WatcherViewModel: ObservableObject {
             let batch = BatchRecord(
                 timestamp: Date(),
                 operations: operations,
-                createdDirs: [],
-                profileName: "Watcher"
+                createdDirs: []
             )
             HistoryManager.shared.addBatch(batch)
             

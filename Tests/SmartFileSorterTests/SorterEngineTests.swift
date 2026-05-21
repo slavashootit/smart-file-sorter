@@ -424,8 +424,7 @@ final class SorterEngineTests: XCTestCase {
             id: UUID(),
             timestamp: Date(),
             operations: [batchOp],
-            createdDirs: [],
-            profileName: "TestProfile"
+            createdDirs: []
         )
         
         historyMgr.addBatch(batch)

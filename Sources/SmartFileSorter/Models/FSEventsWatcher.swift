@@ -82,8 +82,7 @@ public class FSEventsWatcher {
         watchedPaths.insert(path)
         print("[WATCHER] Додано папку: \(path)")
         
-        let activeProfile = UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
-        UserDefaults.standard.set(Array(watchedPaths), forKey: "watcher_paths_\(activeProfile)")
+        UserDefaults.standard.set(Array(watchedPaths), forKey: "watcher_paths")
         
         restartStream()
         return true
@@ -98,8 +97,7 @@ public class FSEventsWatcher {
             watchedPaths.remove(path)
             print("[WATCHER] Видалено папку з відстеження: \(path)")
             
-            let activeProfile = UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
-            UserDefaults.standard.set(Array(watchedPaths), forKey: "watcher_paths_\(activeProfile)")
+            UserDefaults.standard.set(Array(watchedPaths), forKey: "watcher_paths")
             
             restartStream()
         }
@@ -107,27 +105,34 @@ public class FSEventsWatcher {
     
     /// Відновити відстеження всіх папок, збережених у UserDefaults
     public func restoreAllWatchedFolders() {
-        let activeProfile = UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
-        let savedPaths = UserDefaults.standard.stringArray(forKey: "watcher_paths_\(activeProfile)") ?? []
+        // v1.5.1 migration: watcher_paths_Home → watcher_paths
+        if UserDefaults.standard.stringArray(forKey: "watcher_paths") == nil,
+           let legacy = UserDefaults.standard.stringArray(forKey: "watcher_paths_Home") {
+            UserDefaults.standard.set(legacy, forKey: "watcher_paths")
+            UserDefaults.standard.removeObject(forKey: "watcher_paths_Home")
+            print("[WATCHER] Мігровано watcher_paths_Home → watcher_paths")
+        }
+        
+        let savedPaths = UserDefaults.standard.stringArray(forKey: "watcher_paths") ?? []
         
         let urls = SecurityBookmarks.shared.restoreAllBookmarks()
         for url in urls {
             if savedPaths.contains(url.path) && watchedPaths.count < maxWatchFolders {
                 SecurityBookmarks.shared.startAccessing(url)
                 watchedPaths.insert(url.path)
-                print("[WATCHER] Відновлено папку для профілю \(activeProfile): \(url.path)")
+                print("[WATCHER] Відновлено папку: \(url.path)")
             }
         }
         
-        // Якщо це перший запуск і збережених папок немає, але є закладки, мігруємо їх у Home
-        if savedPaths.isEmpty && !urls.isEmpty && activeProfile == "Home" {
+        // Якщо це перший запуск і збережених папок немає, але є закладки
+        if savedPaths.isEmpty && !urls.isEmpty {
             for url in urls {
                 if watchedPaths.count < maxWatchFolders {
                     SecurityBookmarks.shared.startAccessing(url)
                     watchedPaths.insert(url.path)
                 }
             }
-            UserDefaults.standard.set(Array(watchedPaths), forKey: "watcher_paths_Home")
+            UserDefaults.standard.set(Array(watchedPaths), forKey: "watcher_paths")
         }
         
         if !watchedPaths.isEmpty {

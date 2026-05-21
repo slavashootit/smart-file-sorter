@@ -4,6 +4,26 @@ All notable changes to the **Smart File Sorter** project will be documented in t
 
 ---
 
+## [1.5.1] - 2026-05-21
+
+### Removed
+- **Profile system** — `ProfileManager`, `Profile` struct, profile picker from sidebar and menu bar, `activeProfile`/`currentProfile` properties from all files.
+- **Semantic Search** — `SemanticSearchView`, `SemanticSearchEngine`, embeddings SQLite table, sidebar nav link, route case.
+- **`BatchRecord.profileName`** field — removed from model, SQLite column (`ALTER TABLE DROP COLUMN`), INSERT/SELECT queries, CSV export.
+- `NLContextualEmbedding` — not used anywhere (0 callsites).
+
+### Changed
+- `rules_Home.json` renamed to `rules.json` (migrated on launch via `FileManager.moveItem`).
+- `watcher_paths_Home` UserDefault renamed to `watcher_paths` (migrated on first launch, old key removed).
+- CSV export header: removed "Профіль" column.
+
+### Notes
+- Legacy `profiles.json` files on disk are silently ignored.
+- All migration code references legacy key names only to read-and-delete them.
+- `grep -rin "profile" Sources/` returns 0 runtime results (only migration SQL).
+
+---
+
 ## [1.5.0] - 2026-05-21
 
 This release delivers the **v1.5 "Visual Identity"** milestone, implementing a premium, modern design system throughout the entire application with unified design tokens, dynamic animations, and accessibility-first motion controls.
