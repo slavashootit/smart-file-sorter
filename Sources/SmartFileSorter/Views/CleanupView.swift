@@ -20,6 +20,15 @@ public struct CleanupView: View {
     @State private var itemsToDeleteSize: Int64 = 0
     @State private var deletionSource = "" // "large", "downloads", "folders"
     
+    // Alert state to avoid blocking NSAlert calls
+    struct AlertInfo: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
+    @State private var activeAlert: AlertInfo? = nil
+    @State private var metadata: [URL: VideoMetadata] = [:]
+    
     public var body: some View {
         VStack(spacing: 0) {
             // Верхня панель налаштувань сканування
@@ -133,6 +142,19 @@ public struct CleanupView: View {
             .padding()
             .frame(width: 350, height: 150)
         }
+        .confirmationDialog(
+            activeAlert?.title ?? "",
+            isPresented: Binding(
+                get: { activeAlert != nil },
+                set: { if !$0 { activeAlert = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: activeAlert
+        ) { _ in
+            Button("OK") { }
+        } message: { info in
+            Text(info.message)
+        }
     }
     
     // Вкладка "Великі файли"
@@ -178,10 +200,10 @@ public struct CleanupView: View {
                                         .lineLimit(1)
                                         .truncationMode(.middle)
                                     
-                                    if let videoInfo = getVideoMetadata(for: item.url) {
+                                    if let videoInfo = metadata[item.url] {
                                         Text("•")
                                             .foregroundColor(.secondary)
-                                        Text(videoInfo)
+                                        Text(videoInfo.displayString)
                                             .foregroundColor(.blue)
                                             .bold()
                                     }
@@ -216,6 +238,34 @@ public struct CleanupView: View {
                             .buttonStyle(.plain)
                         }
                         .padding(.vertical, 4)
+                        .task(id: item.url) {
+                            guard metadata[item.url] == nil else { return }
+                            let ext = item.url.pathExtension.lowercased()
+                            guard ["mp4", "mov", "m4v", "avi", "mkv", "webm"].contains(ext) else { return }
+                            
+                            let info = await Task.detached(priority: .userInitiated) { () -> VideoMetadata? in
+                                let asset = AVURLAsset(url: item.url)
+                                let duration = asset.duration
+                                let durationSeconds = CMTimeGetSeconds(duration)
+                                guard !durationSeconds.isNaN, durationSeconds > 0 else { return nil }
+                                
+                                let minutes = Int(durationSeconds) / 60
+                                let seconds = Int(durationSeconds) % 60
+                                let durationStr = String(format: "%d:%02d", minutes, seconds)
+                                
+                                if let track = asset.tracks(withMediaType: .video).first {
+                                    let size = track.naturalSize
+                                    let width = Int(size.width)
+                                    let height = Int(size.height)
+                                    return VideoMetadata(width: width, height: height, duration: durationStr)
+                                }
+                                return VideoMetadata(width: nil, height: nil, duration: durationStr)
+                            }.value
+                            
+                            if let info = info {
+                                metadata[item.url] = info
+                            }
+                        }
                     }
                 }
             }
@@ -263,10 +313,10 @@ public struct CleanupView: View {
                                 HStack(spacing: 6) {
                                     Text(item.category)
                                     
-                                    if let videoInfo = getVideoMetadata(for: item.url) {
+                                    if let videoInfo = metadata[item.url] {
                                         Text("•")
                                             .foregroundColor(.secondary)
-                                        Text(videoInfo)
+                                        Text(videoInfo.displayString)
                                             .foregroundColor(.blue)
                                             .bold()
                                     }
@@ -294,6 +344,34 @@ public struct CleanupView: View {
                             .buttonStyle(.plain)
                         }
                         .padding(.vertical, 4)
+                        .task(id: item.url) {
+                            guard metadata[item.url] == nil else { return }
+                            let ext = item.url.pathExtension.lowercased()
+                            guard ["mp4", "mov", "m4v", "avi", "mkv", "webm"].contains(ext) else { return }
+                            
+                            let info = await Task.detached(priority: .userInitiated) { () -> VideoMetadata? in
+                                let asset = AVURLAsset(url: item.url)
+                                let duration = asset.duration
+                                let durationSeconds = CMTimeGetSeconds(duration)
+                                guard !durationSeconds.isNaN, durationSeconds > 0 else { return nil }
+                                
+                                let minutes = Int(durationSeconds) / 60
+                                let seconds = Int(durationSeconds) % 60
+                                let durationStr = String(format: "%d:%02d", minutes, seconds)
+                                
+                                if let track = asset.tracks(withMediaType: .video).first {
+                                    let size = track.naturalSize
+                                    let width = Int(size.width)
+                                    let height = Int(size.height)
+                                    return VideoMetadata(width: width, height: height, duration: durationStr)
+                                }
+                                return VideoMetadata(width: nil, height: nil, duration: durationStr)
+                            }.value
+                            
+                            if let info = info {
+                                metadata[item.url] = info
+                            }
+                        }
                     }
                 }
             }
@@ -385,11 +463,10 @@ public struct CleanupView: View {
             
             Button("Очистити Смітник зараз вручну") {
                 let deletedCount = manager.purgeTrashItems(olderThanDays: autoPurgeTrashDays)
-                let alert = NSAlert()
-                alert.messageText = "Смітник очищено"
-                alert.informativeText = "Видалено елементів зі Смітника: \(deletedCount)"
-                alert.alertStyle = .informational
-                alert.runModal()
+                activeAlert = AlertInfo(
+                    title: "Смітник очищено",
+                    message: "Видалено елементів зі Смітника: \(deletedCount)"
+                )
             }
             .buttonStyle(.borderedProminent)
             .tint(.orange)
@@ -526,11 +603,10 @@ public struct CleanupView: View {
         RuleEngine.shared.rules.append(newRule)
         RuleEngine.shared.saveRules()
         
-        let alert = NSAlert()
-        alert.messageText = "Правило створено"
-        alert.informativeText = "Автоматичне правило '\(ruleName)' додано до активного профілю."
-        alert.alertStyle = .informational
-        alert.runModal()
+        activeAlert = AlertInfo(
+            title: "Правило створено",
+            message: "Автоматичне правило '\(ruleName)' додано до активного профілю."
+        )
     }
     
     private func formatBytes(_ bytes: Int64) -> String {
@@ -547,26 +623,4 @@ public struct CleanupView: View {
         return df.string(from: date)
     }
     
-    private func getVideoMetadata(for url: URL) -> String? {
-        let ext = url.pathExtension.lowercased()
-        guard ["mp4", "mov", "m4v", "avi", "mkv", "webm"].contains(ext) else { return nil }
-        
-        let asset = AVURLAsset(url: url)
-        let duration = asset.duration
-        let durationSeconds = CMTimeGetSeconds(duration)
-        guard !durationSeconds.isNaN, durationSeconds > 0 else { return nil }
-        
-        let minutes = Int(durationSeconds) / 60
-        let seconds = Int(durationSeconds) % 60
-        let durationStr = String(format: "%d:%02d", minutes, seconds)
-        
-        if let track = asset.tracks(withMediaType: .video).first {
-            let size = track.naturalSize
-            let width = Int(size.width)
-            let height = Int(size.height)
-            return "\(width)x\(height) • \(durationStr)"
-        }
-        
-        return durationStr
-    }
 }

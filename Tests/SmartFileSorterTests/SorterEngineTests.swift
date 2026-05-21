@@ -1,18 +1,37 @@
-import Foundation
+import XCTest
+import CoreServices
+@testable import SmartFileSorter
 
-@main
-struct SorterEngineTests {
-    static func main() {
-        let fileManager = FileManager.default
-        let home = fileManager.homeDirectoryForCurrentUser
-        let sandboxURL = home.appendingPathComponent(".gemini/antigravity/scratch/file_sorter/test_sandbox")
+final class SorterEngineTests: XCTestCase {
+    
+    private var tempDirectoryURL: URL!
+    private var sandboxURL: URL!
+    private var engine: SorterEngine!
+    private var fileManager: FileManager!
+    
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        fileManager = FileManager.default
+        let tempDir = fileManager.temporaryDirectory
+        tempDirectoryURL = tempDir.appendingPathComponent("SmartFileSorterEngineTests_\(UUID().uuidString)")
+        sandboxURL = tempDirectoryURL.appendingPathComponent("test_sandbox")
+        try fileManager.createDirectory(at: sandboxURL, withIntermediateDirectories: true)
+        engine = SorterEngine.shared
         
-        // Setup sandbox
-        if fileManager.fileExists(atPath: sandboxURL.path) {
-            try? fileManager.removeItem(at: sandboxURL)
+        // Clear previous history
+        HistoryManager.shared.clearAllHistory()
+    }
+    
+    override func tearDownWithError() throws {
+        if fileManager.fileExists(atPath: tempDirectoryURL.path) {
+            try? fileManager.removeItem(at: tempDirectoryURL)
         }
-        try! fileManager.createDirectory(at: sandboxURL, withIntermediateDirectories: true, attributes: nil)
-        
+        engine = nil
+        fileManager = nil
+        try super.tearDownWithError()
+    }
+    
+    private func createDefaultSandboxFiles() {
         // 1. Створюємо унікальні файли в корені
         try! "unique video content 1".write(to: sandboxURL.appendingPathComponent("video1.mp4"), atomically: true, encoding: .utf8)
         try! "unique audio content".write(to: sandboxURL.appendingPathComponent("song.mp3"), atomically: true, encoding: .utf8)
@@ -44,15 +63,34 @@ struct SorterEngineTests {
         // 6. Створюємо порожню підпапку
         let emptyURL = sandboxURL.appendingPathComponent("empty_folder")
         try! fileManager.createDirectory(at: emptyURL, withIntermediateDirectories: true, attributes: nil)
-        
-        print("--- ЗАПУСК ТЕСТУВАННЯ СОРТУВАННЯ ТА СКАСУВАННЯ (SWIFT NATIVE) ---")
-        
-        let engine = SorterEngine.shared
-        
-        // Очищаємо попередню історію
-        if fileManager.fileExists(atPath: engine.historyFileURL.path) {
-            try? fileManager.removeItem(at: engine.historyFileURL)
+    }
+    
+    private func runSorterEngine(
+        folderPath: String,
+        sortMode: SortMode,
+        categories: [String: Bool],
+        dryRun: Bool,
+        detectDuplicates: Bool
+    ) async -> [String] {
+        let stream = engine.sortFiles(
+            folderPath: folderPath,
+            sortMode: sortMode,
+            categories: categories,
+            dryRun: dryRun,
+            detectDuplicates: detectDuplicates
+        )
+        var finalLogs: [String] = []
+        for await progress in stream {
+            if progress.isFinished {
+                finalLogs = progress.finalLogs
+            }
         }
+        return finalLogs
+    }
+    
+    // 1. Тестування Dry Run
+    func testSorterEngineDryRun() async throws {
+        createDefaultSandboxFiles()
         
         let categories = [
             "Зображення": true,
@@ -63,9 +101,7 @@ struct SorterEngineTests {
             "Інші файли": true
         ]
         
-        // 1. Тестування Dry Run
-        print("\n1. Тестування попереднього перегляду (dryRun=true)...")
-        let _ = engine.sortFiles(
+        _ = await runSorterEngine(
             folderPath: sandboxURL.path,
             sortMode: .type,
             categories: categories,
@@ -73,102 +109,133 @@ struct SorterEngineTests {
             detectDuplicates: true
         )
         
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("video1.mp4").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image_copy.png").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("pure_videos").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("pure_pics").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("mixed_stuff").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("empty_folder").path))
-        assert(!engine.checkHistoryExists(), "Dry run не повинен створювати файл історії")
-        print("✓ Попередній перегляд працює коректно (усі об'єкти залишились на місці)")
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("video1.mp4").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image_copy.png").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("pure_videos").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("pure_pics").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("mixed_stuff").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("empty_folder").path))
+        XCTAssertFalse(engine.checkHistoryExists(), "Dry run не повинен створювати файл історії")
+    }
+    
+    // 2. Тестування реального сортування
+    func testSorterEngineRealSorting() async throws {
+        createDefaultSandboxFiles()
         
-        // 2. Тестування реального сортування
-        print("\n2. Тестування реального сортування з пошуком дублікатів...")
-        let logsReal = engine.sortFiles(
+        let categories = [
+            "Зображення": true,
+            "Відео": true,
+            "Документи": true,
+            "Аудіо": true,
+            "Архіви": true,
+            "Інші файли": true
+        ]
+        
+        let logsReal = await runSorterEngine(
             folderPath: sandboxURL.path,
             sortMode: .type,
             categories: categories,
             dryRun: false,
             detectDuplicates: true
         )
-        for log in logsReal {
-            print(log)
-        }
+        XCTAssertFalse(logsReal.isEmpty)
         
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Відео/video1.mp4").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Аудіо/song.mp3").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Документи/doc1.pdf").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Зображення/image_another_copy.png").path))
-        assert(!fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image.png").path))
-        assert(!fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image_copy.png").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Відео/pure_videos/clip1.mp4").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Зображення/pure_pics/photo1.jpg").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("mixed_stuff/pic.jpg").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("empty_folder").path))
-        assert(engine.checkHistoryExists(), "Має створитися файл історії")
-        print("✓ Сортування чистих папок та збереження змішаних/порожніх пройшло успішно")
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Відео/video1.mp4").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Аудіо/song.mp3").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Документи/doc1.pdf").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Зображення/image_another_copy.png").path))
+        XCTAssertFalse(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image.png").path))
+        XCTAssertFalse(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image_copy.png").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Відео/pure_videos/clip1.mp4").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Зображення/pure_pics/photo1.jpg").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("mixed_stuff/pic.jpg").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("empty_folder").path))
+        XCTAssertTrue(engine.checkHistoryExists(), "Має створитися файл історії")
+    }
+    
+    // 3. Тестування скасування сортування (Undo)
+    func testSorterEngineUndo() async throws {
+        createDefaultSandboxFiles()
         
-        // 3. Тестування скасування сортування (Undo)
-        print("\n3. Тестування функції скасування сортування (Undo)...")
-        let _ = engine.undoSorting()
+        let categories = [
+            "Зображення": true,
+            "Відео": true,
+            "Документи": true,
+            "Аудіо": true,
+            "Архіви": true,
+            "Інші файли": true
+        ]
         
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("video1.mp4").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("song.mp3").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("doc1.pdf").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image.png").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image_copy.png").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image_another_copy.png").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("pure_videos/clip1.mp4").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("pure_pics/photo1.jpg").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("mixed_stuff/pic.jpg").path))
-        assert(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("empty_folder").path))
+        _ = await runSorterEngine(
+            folderPath: sandboxURL.path,
+            sortMode: .type,
+            categories: categories,
+            dryRun: false,
+            detectDuplicates: true
+        )
         
-        assert(!fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Відео").path))
-        assert(!fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Зображення").path))
-        assert(!fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Аудіо").path))
-        assert(!fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Документи").path))
-        assert(!fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Дублікати").path))
-        assert(!engine.checkHistoryExists(), "Файл історії має бути видалено після Undo")
-        print("✓ Скасування (Undo) працює бездоганно")
+        XCTAssertTrue(engine.checkHistoryExists())
         
-        // 4. Тестування SecurityBookmarks
-        print("\n4. Тестування SecurityBookmarks...")
+        let undoLogs = engine.undoSorting()
+        XCTAssertFalse(undoLogs.isEmpty)
+        
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("video1.mp4").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("song.mp3").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("doc1.pdf").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image.png").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image_copy.png").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("image_another_copy.png").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("pure_videos/clip1.mp4").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("pure_pics/photo1.jpg").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("mixed_stuff/pic.jpg").path))
+        XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("empty_folder").path))
+        
+        XCTAssertFalse(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Відео").path))
+        XCTAssertFalse(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Зображення").path))
+        XCTAssertFalse(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Аудіо").path))
+        XCTAssertFalse(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Документи").path))
+        XCTAssertFalse(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Дублікати").path))
+        XCTAssertFalse(engine.checkHistoryExists(), "Файл історії має бути порожнім/відсутнім після Undo")
+    }
+    
+    // 4. Тестування SecurityBookmarks
+    func testSecurityBookmarks() throws {
         let bookmarkMgr = SecurityBookmarks.shared
         let testBookmarkFolder = sandboxURL.appendingPathComponent("bookmark_test_dir")
-        try! fileManager.createDirectory(at: testBookmarkFolder, withIntermediateDirectories: true, attributes: nil)
+        try fileManager.createDirectory(at: testBookmarkFolder, withIntermediateDirectories: true, attributes: nil)
         
         let bookmarkSaved = bookmarkMgr.saveBookmark(for: testBookmarkFolder)
-        assert(bookmarkSaved, "Має успішно зберегти закладку безпеки")
+        XCTAssertTrue(bookmarkSaved, "Має успішно зберегти закладку безпеки")
         
         let restoredBookmarks = bookmarkMgr.restoreAllBookmarks()
-        assert(restoredBookmarks.map { $0.path }.contains(testBookmarkFolder.path), "restoredBookmarks має містити тестову папку")
+        XCTAssertTrue(restoredBookmarks.map { $0.path }.contains(testBookmarkFolder.path), "restoredBookmarks має містити тестову папку")
         
         bookmarkMgr.startAccessing(testBookmarkFolder)
         bookmarkMgr.stopAccessing(testBookmarkFolder)
         bookmarkMgr.removeBookmark(for: testBookmarkFolder)
         
         let restoredAfterRemove = bookmarkMgr.restoreAllBookmarks()
-        assert(!restoredAfterRemove.map { $0.path }.contains(testBookmarkFolder.path), "Після видалення закладка не повинна відновлюватись")
-        print("✓ SecurityBookmarks працює коректно")
-        
-        // 5. Тестування FSEventsWatcher
-        print("\n5. Тестування FSEventsWatcher...")
+        XCTAssertFalse(restoredAfterRemove.map { $0.path }.contains(testBookmarkFolder.path), "Після видалення закладка не повинна відновлюватись")
+    }
+    
+    // 5. Тестування FSEventsWatcher
+    func testFSEventsWatcher() throws {
         let watcher = FSEventsWatcher.shared
         let watchDir = sandboxURL.appendingPathComponent("watch_test_dir")
-        try! fileManager.createDirectory(at: watchDir, withIntermediateDirectories: true, attributes: nil)
+        try fileManager.createDirectory(at: watchDir, withIntermediateDirectories: true, attributes: nil)
         
         let watchAdded = watcher.watchFolder(path: watchDir.path)
-        assert(watchAdded, "Має успішно додати папку до відстеження")
-        assert(watcher.getWatchedPaths().contains(watchDir.path), "getWatchedPaths має містити додану папку")
-        assert(watcher.isWatching(), "Стрім моніторингу має бути запущений")
+        XCTAssertTrue(watchAdded, "Має успішно додати папку до відстеження")
+        XCTAssertTrue(watcher.getWatchedPaths().contains(watchDir.path), "getWatchedPaths має містити додану папку")
+        XCTAssertTrue(watcher.isWatching(), "Стрім моніторингу має бути запущений")
         
         // Створюємо синхронізацію для очікування події FSEvents
-        let semaphore = DispatchSemaphore(value: 0)
+        let expectation = XCTestExpectation(description: "FSEvents event expectation")
         var receivedPaths: [String] = []
         
         watcher.onEvents = { paths in
             receivedPaths.append(contentsOf: paths)
-            semaphore.signal()
+            expectation.fulfill()
         }
         
         // Створюємо новий файл у відстежуваній папці
@@ -176,39 +243,31 @@ struct SorterEngineTests {
         try! "hello event watcher".write(to: triggerFile, atomically: true, encoding: .utf8)
         
         // Очікуємо події протягом 3 секунд (латенція стріму 1.0 сек)
-        let waitResult = semaphore.wait(timeout: .now() + 3.0)
-        assert(waitResult == .success, "FSEventsWatcher не зафіксував додавання файлу")
-        assert(receivedPaths.contains(triggerFile.path), "Отримані події мають містити шлях створеного файлу")
-        print("✓ FSEventsWatcher успішно перехопив подію створення файлу")
+        let result = XCTWaiter.wait(for: [expectation], timeout: 5.0)
+        XCTAssertEqual(result, .completed, "FSEventsWatcher не зафіксував додавання файлу")
+        XCTAssertTrue(receivedPaths.contains(triggerFile.path), "Отримані події мають містити шлях створеного файлу")
         
         // Тестування призупинення
         watcher.pauseAll()
-        assert(!watcher.isWatching(), "Після pauseAll моніторинг має призупинитись")
+        XCTAssertFalse(watcher.isWatching(), "Після pauseAll моніторинг має призупинитись")
         
         watcher.resumeAll()
-        assert(watcher.isWatching(), "Після resumeAll моніторинг має запуститись знову")
+        XCTAssertTrue(watcher.isWatching(), "Після resumeAll моніторинг має запуститись знову")
         
         watcher.shutdown()
-        assert(watcher.getWatchedPaths().isEmpty, "Після shutdown список відстежуваних папок має бути порожнім")
-        print("✓ FSEventsWatcher керування стрімом працює коректно")
-
-        // 6. Тестування RuleEngine
-        print("\n6. Тестування RuleEngine...")
+        XCTAssertTrue(watcher.getWatchedPaths().isEmpty, "Після shutdown список відстежуваних папок має бути порожнім")
+    }
+    
+    // 6. Тестування RuleEngine
+    func testRuleEngineBasicConditions() throws {
         let ruleEngine = RuleEngine.shared
-        
-        // Очищаємо перед тестом
-        if fileManager.fileExists(atPath: ruleEngine.rulesFileURL.path) {
-            try? fileManager.removeItem(at: ruleEngine.rulesFileURL)
-        }
         
         // Створюємо тестовий файл
         let ruleTestDir = sandboxURL.appendingPathComponent("rules_test_dir")
-        let ruleDestDir = sandboxURL.appendingPathComponent("rules_dest_dir")
-        try! fileManager.createDirectory(at: ruleTestDir, withIntermediateDirectories: true, attributes: nil)
-        try! fileManager.createDirectory(at: ruleDestDir, withIntermediateDirectories: true, attributes: nil)
+        try fileManager.createDirectory(at: ruleTestDir, withIntermediateDirectories: true, attributes: nil)
         
         let testFile = ruleTestDir.appendingPathComponent("Report_2026.pdf")
-        try! "pdf file content data".write(to: testFile, atomically: true, encoding: .utf8)
+        try "pdf file content data".write(to: testFile, atomically: true, encoding: .utf8)
         
         // Тестуємо окремі умови
         let condName = RuleCondition(type: .nameMatches, value: "report")
@@ -216,21 +275,42 @@ struct SorterEngineTests {
         let condKind = RuleCondition(type: .kindIs, value: "doc")
         let condSize = RuleCondition(type: .sizeGreaterThan, value: "5")
         
-        assert(ruleEngine.evaluate(condition: condName, for: testFile), "Умова nameMatches має повернути true")
-        assert(ruleEngine.evaluate(condition: condExt, for: testFile), "Умова extensionIs має повернути true")
-        assert(ruleEngine.evaluate(condition: condKind, for: testFile), "Умова kindIs (doc) має повернути true")
-        assert(ruleEngine.evaluate(condition: condSize, for: testFile), "Умова sizeGreaterThan має повернути true")
+        XCTAssertTrue(ruleEngine.evaluate(condition: condName, for: testFile), "Умова nameMatches має повернути true")
+        XCTAssertTrue(ruleEngine.evaluate(condition: condExt, for: testFile), "Умова extensionIs має повернути true")
+        XCTAssertTrue(ruleEngine.evaluate(condition: condKind, for: testFile), "Умова kindIs (doc) має повернути true")
+        XCTAssertTrue(ruleEngine.evaluate(condition: condSize, for: testFile), "Умова sizeGreaterThan має повернути true")
         
         // Тестуємо невідповідні умови
         let condBadName = RuleCondition(type: .nameMatches, value: "photo")
         let condBadExt = RuleCondition(type: .extensionIs, value: "png")
         let condBadSize = RuleCondition(type: .sizeLessThan, value: "5")
         
-        assert(!ruleEngine.evaluate(condition: condBadName, for: testFile), "Невірна умова nameMatches має повернути false")
-        assert(!ruleEngine.evaluate(condition: condBadExt, for: testFile), "Невірна умова extensionIs має повернути false")
-        assert(!ruleEngine.evaluate(condition: condBadSize, for: testFile), "Невірна умова sizeLessThan має повернути false")
+        XCTAssertFalse(ruleEngine.evaluate(condition: condBadName, for: testFile), "Невірна умова nameMatches має повернути false")
+        XCTAssertFalse(ruleEngine.evaluate(condition: condBadExt, for: testFile), "Невірна умова extensionIs має повернути false")
+        XCTAssertFalse(ruleEngine.evaluate(condition: condBadSize, for: testFile), "Невірна умова sizeLessThan має повернути false")
+    }
+    
+    // 7. Тестування RuleEngine Execution and Serialization
+    func testRuleEngineExecutionAndSerialization() throws {
+        let ruleEngine = RuleEngine.shared
         
-        // Створюємо та додаємо правило
+        // Очищаємо перед тестом
+        if fileManager.fileExists(atPath: ruleEngine.rulesFileURL.path) {
+            try? fileManager.removeItem(at: ruleEngine.rulesFileURL)
+        }
+        
+        let ruleTestDir = sandboxURL.appendingPathComponent("rules_test_dir")
+        let ruleDestDir = sandboxURL.appendingPathComponent("rules_dest_dir")
+        try fileManager.createDirectory(at: ruleTestDir, withIntermediateDirectories: true, attributes: nil)
+        try fileManager.createDirectory(at: ruleDestDir, withIntermediateDirectories: true, attributes: nil)
+        
+        let testFile = ruleTestDir.appendingPathComponent("Report_2026.pdf")
+        try "pdf file content data".write(to: testFile, atomically: true, encoding: .utf8)
+        
+        let condName = RuleCondition(type: .nameMatches, value: "report")
+        let condExt = RuleCondition(type: .extensionIs, value: "pdf")
+        let condKind = RuleCondition(type: .kindIs, value: "doc")
+        
         let rule = Rule(
             name: "Сортувати звіти PDF",
             enabled: true,
@@ -241,11 +321,11 @@ struct SorterEngineTests {
             ]
         )
         
-        assert(ruleEngine.match(rule: rule, for: testFile), "Правило має відповідати файлу")
+        XCTAssertTrue(ruleEngine.match(rule: rule, for: testFile), "Правило має відповідати файлу")
         
         // Виконуємо правило
         let execResult = ruleEngine.execute(rule: rule, for: testFile)
-        assert(execResult.success, "Виконання дій правила має бути успішним")
+        XCTAssertTrue(execResult.success, "Виконання дій правила має бути успішним")
         
         let calendar = Calendar.current
         let year = String(format: "%04d", calendar.component(.year, from: Date()))
@@ -253,49 +333,41 @@ struct SorterEngineTests {
         let expectedNewName = "Sorted_Report_2026_\(year)_\(month).pdf"
         let expectedFinalURL = ruleDestDir.appendingPathComponent(expectedNewName)
         
-        assert(fileManager.fileExists(atPath: expectedFinalURL.path), "Файл має бути перейменований та переміщений у цільову папку")
-        assert(execResult.finalURL.path == expectedFinalURL.path, "Кінцевий URL має відповідати очікуваному шляху")
-        print("✓ Умови та дії правил виконуються успішно")
+        XCTAssertTrue(fileManager.fileExists(atPath: expectedFinalURL.path), "Файл має бути перейменований та переміщений")
+        XCTAssertEqual(execResult.finalURL.path, expectedFinalURL.path, "Кінцевий URL має відповідати очікуваному шляху")
         
         // Тестування збереження та завантаження правил у JSON
         ruleEngine.rules = [rule]
         ruleEngine.saveRules()
         
-        // Скидаємо список і завантажуємо знову
         ruleEngine.rules = []
         ruleEngine.loadRules()
         
-        assert(ruleEngine.rules.count == 1, "Має завантажитись 1 збережене правило")
-        assert(ruleEngine.rules[0].name == "Сортувати звіти PDF", "Ім'я завантаженого правила має співпадати")
-        assert(ruleEngine.rules[0].actions.count == 2, "Кількість дій має бути 2")
-        print("✓ Збереження та завантаження rules.json працює коректно")
+        XCTAssertEqual(ruleEngine.rules.count, 1, "Має завантажитись 1 збережене правило")
+        XCTAssertEqual(ruleEngine.rules.first?.name, "Сортувати звіти PDF", "Ім'я завантаженого правила має співпадати")
+        XCTAssertEqual(ruleEngine.rules.first?.actions.count, 2, "Кількість дій має бути 2")
         
         // Очищення rules.json
         if fileManager.fileExists(atPath: ruleEngine.rulesFileURL.path) {
             try? fileManager.removeItem(at: ruleEngine.rulesFileURL)
         }
-
-        // 7. Тестування HistoryManager
-        print("\n7. Тестування HistoryManager...")
+    }
+    
+    // 8. Тестування HistoryManager (Trash and Undo)
+    func testHistoryManagerTrashAndUndo() throws {
         let historyMgr = HistoryManager.shared
-        
-        // Очищаємо перед тестом
-        historyMgr.clearAllHistory()
-        if fileManager.fileExists(atPath: historyMgr.historyFileURL.path) {
-            try? fileManager.removeItem(at: historyMgr.historyFileURL)
-        }
         
         // Створюємо тестовий файл для переміщення в Смітник
         let trashSourceDir = sandboxURL.appendingPathComponent("trash_source_dir")
-        try! fileManager.createDirectory(at: trashSourceDir, withIntermediateDirectories: true, attributes: nil)
+        try fileManager.createDirectory(at: trashSourceDir, withIntermediateDirectories: true, attributes: nil)
         let fileToTrash = trashSourceDir.appendingPathComponent("duplicate_to_remove.txt")
-        try! "duplicate text".write(to: fileToTrash, atomically: true, encoding: .utf8)
+        try "duplicate text".write(to: fileToTrash, atomically: true, encoding: .utf8)
         
         // Видаляємо в Смітник
         let resultURL = historyMgr.trashItem(at: fileToTrash)
-        assert(resultURL != nil, "Має успішно перенести файл до Смітника та повернути його новий URL")
-        assert(!fileManager.fileExists(atPath: fileToTrash.path), "Файлу більше не повинно існувати за оригінальним шляхом")
-        assert(fileManager.fileExists(atPath: resultURL!.path), "Файл має існувати в Смітнику")
+        XCTAssertNotNil(resultURL, "Має успішно перенести файл до Смітника")
+        XCTAssertFalse(fileManager.fileExists(atPath: fileToTrash.path), "Файлу більше не повинно існувати за оригінальним шляхом")
+        XCTAssertTrue(fileManager.fileExists(atPath: resultURL!.path), "Файл має існувати в Смітнику")
         
         // Створюємо партію історії, де новим шляхом є шлях у Смітнику
         let batchOp = BatchOperation(originalPath: fileToTrash.path, newPath: resultURL!.path, isTrashed: true)
@@ -308,34 +380,38 @@ struct SorterEngineTests {
         )
         
         historyMgr.addBatch(batch)
-        assert(historyMgr.checkHistoryExists(), "Історія має містити додану партію")
+        XCTAssertTrue(historyMgr.checkHistoryExists(), "Історія має містити додану партію")
         
-        // Виконуємо скасування (Undo), що має дістати файл зі Смітника!
-        let undoSuccess = historyMgr.undoLastBatch()
-        assert(undoSuccess, "Скасування партії має пройти успішно")
-        assert(fileManager.fileExists(atPath: fileToTrash.path), "Скасування має повернути файл зі Смітника назад до оригінального шляху")
-        assert(!fileManager.fileExists(atPath: resultURL!.path), "Файл має бути видалений зі Смітника після відновлення")
-        print("✓ HistoryManager trashItem та undoLastBatch працюють коректно")
+        // Виконуємо скасування (Undo)
+        let undoLogs = historyMgr.undoLastBatch()
+        XCTAssertFalse(undoLogs.isEmpty)
+        XCTAssertTrue(fileManager.fileExists(atPath: fileToTrash.path), "Скасування має повернути файл зі Смітника")
+        XCTAssertFalse(fileManager.fileExists(atPath: resultURL!.path), "Файл має бути видалений зі Смітника")
+    }
+    
+    // 9. Тестування RuleEngine v2 Features
+    func testRuleEngineV2Features() throws {
+        let ruleEngine = RuleEngine.shared
         
-        // 8. Тестування RuleEngine v2
-        print("\n8. Тестування RuleEngine v2 (nested groups, regex, tags, zip, conflict detector)...")
+        let ruleTestDir = sandboxURL.appendingPathComponent("rules_test_dir")
+        try fileManager.createDirectory(at: ruleTestDir, withIntermediateDirectories: true, attributes: nil)
         
         let testFileV2 = ruleTestDir.appendingPathComponent("photo_123.jpg")
-        try! "jpeg content data".write(to: testFileV2, atomically: true, encoding: .utf8)
+        try "jpeg content data".write(to: testFileV2, atomically: true, encoding: .utf8)
         
         // 8.1. Тестуємо рекурсивні (nested) умови OR
         let condJpg = RuleCondition(type: .extensionIs, value: "jpg")
         let condPng = RuleCondition(type: .extensionIs, value: "png")
         let groupOr = RuleCondition(logicalOperator: .or, subconditions: [condJpg, condPng])
         
-        assert(ruleEngine.evaluate(condition: groupOr, for: testFileV2), "Nested OR group (jpg OR png) має повернути true")
+        XCTAssertTrue(ruleEngine.evaluate(condition: groupOr, for: testFileV2), "Nested OR group (jpg OR png) має повернути true")
         
         // 8.2. Тестуємо Regex-умови
         let condRegexValid = RuleCondition(type: .filenameMatchesRegex, value: "^photo_\\d{3}\\.jpg$")
         let condRegexInvalid = RuleCondition(type: .filenameMatchesRegex, value: "[invalid regex")
         
-        assert(ruleEngine.evaluate(condition: condRegexValid, for: testFileV2), "Regex '^photo_\\d{3}\\.jpg$' має повернути true")
-        assert(!ruleEngine.evaluate(condition: condRegexInvalid, for: testFileV2), "Невалідний Regex має повернути false і не впасти")
+        XCTAssertTrue(ruleEngine.evaluate(condition: condRegexValid, for: testFileV2), "Regex '^photo_\\d{3}\\.jpg$' має повернути true")
+        XCTAssertFalse(ruleEngine.evaluate(condition: condRegexInvalid, for: testFileV2), "Невалідний Regex має повернути false і не впасти")
         
         // 8.3. Тестуємо додавання тегів Finder та умов hasTag / doesNotHaveTag
         let ruleTags = Rule(
@@ -345,12 +421,12 @@ struct SorterEngineTests {
             actions: [RuleAction(type: .addTag, value: "Red")]
         )
         let execTagsResult = ruleEngine.execute(rule: ruleTags, for: testFileV2)
-        assert(execTagsResult.success, "Додавання тегу має пройти успішно")
+        XCTAssertTrue(execTagsResult.success, "Додавання тегу має пройти успішно")
         
         let condHasTag = RuleCondition(type: .hasTag, value: "Red")
         let condNoTag = RuleCondition(type: .doesNotHaveTag, value: "Green")
-        assert(ruleEngine.evaluate(condition: condHasTag, for: testFileV2), "hasTag (Red) має повернути true")
-        assert(ruleEngine.evaluate(condition: condNoTag, for: testFileV2), "doesNotHaveTag (Green) має повернути true")
+        XCTAssertTrue(ruleEngine.evaluate(condition: condHasTag, for: testFileV2), "hasTag (Red) має повернути true")
+        XCTAssertTrue(ruleEngine.evaluate(condition: condNoTag, for: testFileV2), "doesNotHaveTag (Green) має повернути true")
         
         // 8.4. Тестуємо архівацію в ZIP
         let ruleZip = Rule(
@@ -360,10 +436,10 @@ struct SorterEngineTests {
             actions: [RuleAction(type: .archiveToZIP, value: "")]
         )
         let execZipResult = ruleEngine.execute(rule: ruleZip, for: testFileV2)
-        assert(execZipResult.success, "Архівація повинна пройти успішно")
-        assert(execZipResult.finalURL.pathExtension == "zip", "Кінцевий файл повинен мати розширення zip")
-        assert(fileManager.fileExists(atPath: execZipResult.finalURL.path), "ZIP файл повинен існувати")
-        assert(!fileManager.fileExists(atPath: testFileV2.path), "Оригінальний файл повинен бути видалений після архівації")
+        XCTAssertTrue(execZipResult.success, "Архівація повинна пройти успішно")
+        XCTAssertEqual(execZipResult.finalURL.pathExtension, "zip", "Кінцевий файл повинен мати розширення zip")
+        XCTAssertTrue(fileManager.fileExists(atPath: execZipResult.finalURL.path), "ZIP файл повинен існувати")
+        XCTAssertFalse(fileManager.fileExists(atPath: testFileV2.path), "Оригінальний файл повинен бути видалений після архівації")
         
         // Очищаємо ZIP
         try? fileManager.removeItem(at: execZipResult.finalURL)
@@ -384,15 +460,7 @@ struct SorterEngineTests {
         
         ruleEngine.rules = [ruleConflict1, ruleConflict2]
         let conflicts = ruleEngine.detectConflicts()
-        assert(conflicts.count == 1, "Детектор має знайти один конфлікт")
-        assert(conflicts[0].contains("мають однакові умови, але переміщують файли в різні папки"), "Текст попередження має містити опис конфлікту")
-        print("✓ RuleEngine v2 (nested conditions, regex, tags, zip, conflict detector) перевірено")
-
-        print("\nУСІ АВТОМАТИЧНІ ТЕСТИ УСПІШНО ПРОЙДЕНО! 🎉")
-        
-        // Clean up
-        if fileManager.fileExists(atPath: sandboxURL.path) {
-            try? fileManager.removeItem(at: sandboxURL)
-        }
+        XCTAssertEqual(conflicts.count, 1, "Детектор має знайти один конфлікт")
+        XCTAssertTrue(conflicts.first?.contains("мають однакові умови, але переміщують файли в різні папки") ?? false)
     }
 }

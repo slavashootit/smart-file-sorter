@@ -17,14 +17,11 @@ import Foundation
         guard !urls.isEmpty else { return }
         
         Task {
-            let categories: [String: Bool] = [
-                "Зображення": true,
-                "Відео": true,
-                "Документи": true,
-                "Аудіо": true,
-                "Архіви": true,
-                "Інші файли": true
-            ]
+            var categories: [String: Bool] = [:]
+            for cat in ConfigManager.shared.categories.keys {
+                categories[cat] = true
+            }
+            categories["Інші файли"] = true
             
             for url in urls {
                 var isDir: ObjCBool = false

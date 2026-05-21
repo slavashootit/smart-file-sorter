@@ -1,22 +1,55 @@
 import SwiftUI
 import Charts
 
-struct CategoryStat: Identifiable {
+struct CategoryStat: Identifiable, Equatable {
     let id = UUID()
     let category: String
     let count: Int
+    
+    static func == (lhs: CategoryStat, rhs: CategoryStat) -> Bool {
+        lhs.category == rhs.category && lhs.count == rhs.count
+    }
 }
 
-struct DateStat: Identifiable {
+struct DateStat: Identifiable, Equatable {
     let id = UUID()
     let date: Date
     let count: Int
+    
+    static func == (lhs: DateStat, rhs: DateStat) -> Bool {
+        lhs.date == rhs.date && lhs.count == rhs.count
+    }
 }
 
-struct DestinationStat: Identifiable {
+struct DestinationStat: Identifiable, Equatable {
     let id = UUID()
     let folder: String
     let count: Int
+    
+    static func == (lhs: DestinationStat, rhs: DestinationStat) -> Bool {
+        lhs.folder == rhs.folder && lhs.count == rhs.count
+    }
+}
+
+struct FreedHistoryItem: Identifiable, Equatable {
+    let id = UUID()
+    let date: Date
+    let amount: Double
+    
+    static func == (lhs: FreedHistoryItem, rhs: FreedHistoryItem) -> Bool {
+        lhs.date == rhs.date && lhs.amount == rhs.amount
+    }
+}
+
+struct DashboardStats: Equatable {
+    var totalSorted: Int = 0
+    var totalSpaceOrganized: Int64 = 0
+    var totalSpaceFreed: Int64 = 0
+    var totalDuplicatesRemoved: Int = 0
+    var categoryStats: [CategoryStat] = []
+    var dateStats: [DateStat] = []
+    var destinationStats: [DestinationStat] = []
+    var spaceFreedHistory: [FreedHistoryItem] = []
 }
 
 public struct DashboardView: View {
@@ -24,102 +57,9 @@ public struct DashboardView: View {
     
     @State private var showingExportSuccess = false
     @State private var exportPath = ""
+    @State private var stats = DashboardStats()
     
     public init() {}
-    
-    // Метрики
-    private var totalSorted: Int {
-        historyManager.getBatches().reduce(0) { $0 + $1.operations.count }
-    }
-    
-    private var totalSpaceOrganized: Int64 {
-        historyManager.getBatches().reduce(0) { sum, batch in
-            sum + batch.operations.reduce(0) { $0 + $1.fileSize }
-        }
-    }
-    
-    private var totalSpaceFreed: Int64 {
-        let sortingFreed = historyManager.getBatches().reduce(0) { sum, batch in
-            sum + batch.operations.filter { $0.isTrashed }.reduce(0) { $0 + $1.fileSize }
-        }
-        let manualFreed = UserDefaults.standard.double(forKey: "FreedBytesTotal")
-        return sortingFreed + Int64(manualFreed)
-    }
-    
-    private var totalDuplicatesRemoved: Int {
-        let sortingDuplicates = historyManager.getBatches().reduce(0) { sum, batch in
-            sum + batch.operations.filter { $0.isTrashed }.count
-        }
-        let manualDuplicates = UserDefaults.standard.integer(forKey: "FreedDuplicatesCount")
-        return sortingDuplicates + manualDuplicates
-    }
-    
-    // Статистика очищення пам'яті за днями
-    struct FreedHistoryItem: Identifiable {
-        let id = UUID()
-        let date: Date
-        let amount: Double
-    }
-    
-    private var spaceFreedHistory: [FreedHistoryItem] {
-        let dict = UserDefaults.standard.dictionary(forKey: "freed_history") as? [String: Double] ?? [:]
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        
-        var items: [FreedHistoryItem] = []
-        for (dateStr, val) in dict {
-            if let date = df.date(from: dateStr) {
-                items.append(FreedHistoryItem(date: date, amount: val))
-            }
-        }
-        items.sort { $0.date < $1.date }
-        return items
-    }
-    
-    // Статистика за категоріями
-    private var categoryStats: [CategoryStat] {
-        var counts: [String: Int] = [:]
-        for batch in historyManager.getBatches() {
-            for op in batch.operations {
-                let category = getCategoryFromPath(op.newPath)
-                counts[category, default: 0] += 1
-            }
-        }
-        return counts.map { CategoryStat(category: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-    }
-    
-    // Статистика за датами (останні 7 днів з сортуванням)
-    private var dateStats: [DateStat] {
-        var counts: [Date: Int] = [:]
-        let calendar = Calendar.current
-        for batch in historyManager.getBatches() {
-            let day = calendar.startOfDay(for: batch.timestamp)
-            counts[day, default: 0] += batch.operations.count
-        }
-        return Array(counts.map { DateStat(date: $0.key, count: $0.value) }
-            .sorted { $0.date < $1.date }
-            .suffix(7))
-    }
-    
-    // Топ-5 папок призначення
-    private var destinationStats: [DestinationStat] {
-        var counts: [String: Int] = [:]
-        for batch in historyManager.getBatches() {
-            for op in batch.operations {
-                if !op.isTrashed {
-                    let folderURL = URL(fileURLWithPath: op.newPath).deletingLastPathComponent()
-                    let folderName = folderURL.lastPathComponent
-                    if !folderName.isEmpty {
-                        counts[folderName, default: 0] += 1
-                    }
-                }
-            }
-        }
-        return Array(counts.map { DestinationStat(folder: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-            .prefix(5))
-    }
     
     public var body: some View {
         ScrollView {
@@ -155,34 +95,34 @@ public struct DashboardView: View {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                     MetricCard(
                         title: "Впорядковано",
-                        value: "\(totalSorted)",
+                        value: "\(stats.totalSorted)",
                         icon: "doc.text.fill",
                         gradient: Gradient(colors: [Color.blue, Color.cyan])
                     )
                     
                     MetricCard(
                         title: "Організовано",
-                        value: formatBytes(totalSpaceOrganized),
+                        value: formatBytes(stats.totalSpaceOrganized),
                         icon: "internaldrive.fill",
                         gradient: Gradient(colors: [Color.purple, Color.pink])
                     )
                     
                     MetricCard(
                         title: "Звільнено простору",
-                        value: formatBytes(totalSpaceFreed),
+                        value: formatBytes(stats.totalSpaceFreed),
                         icon: "arrow.down.to.line.circle.fill",
                         gradient: Gradient(colors: [Color.green, Color.teal])
                     )
                     
                     MetricCard(
                         title: "Видалено копій",
-                        value: "\(totalDuplicatesRemoved)",
+                        value: "\(stats.totalDuplicatesRemoved)",
                         icon: "trash.fill",
                         gradient: Gradient(colors: [Color.orange, Color.red])
                     )
                 }
                 
-                if totalSorted == 0 && totalSpaceFreed == 0 {
+                if stats.totalSorted == 0 && stats.totalSpaceFreed == 0 {
                     VStack(spacing: 12) {
                         Image(systemName: "chart.bar.xaxis")
                             .font(.system(size: 48))
@@ -206,7 +146,7 @@ public struct DashboardView: View {
                             Text("Розподіл за категоріями")
                                 .font(.headline)
                             
-                            Chart(categoryStats) { item in
+                            Chart(stats.categoryStats) { item in
                                 BarMark(
                                     x: .value("Кількість", item.count),
                                     y: .value("Категорія", item.category)
@@ -225,7 +165,7 @@ public struct DashboardView: View {
                             Text("Топ-5 папок призначення")
                                 .font(.headline)
                             
-                            Chart(destinationStats) { item in
+                            Chart(stats.destinationStats) { item in
                                 BarMark(
                                     x: .value("Папка", item.folder),
                                     y: .value("Кількість", item.count)
@@ -244,7 +184,7 @@ public struct DashboardView: View {
                             Text("Динаміка сортування (останні дні)")
                                 .font(.headline)
                             
-                            Chart(dateStats) { item in
+                            Chart(stats.dateStats) { item in
                                 LineMark(
                                     x: .value("Дата", item.date, unit: .day),
                                     y: .value("Файлів", item.count)
@@ -275,13 +215,13 @@ public struct DashboardView: View {
                             Text("Звільнення простору (за днями)")
                                 .font(.headline)
                             
-                            if spaceFreedHistory.isEmpty {
+                            if stats.spaceFreedHistory.isEmpty {
                                 Text("Немає даних для побудови графіка")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                             } else {
-                                Chart(spaceFreedHistory) { item in
+                                Chart(stats.spaceFreedHistory) { item in
                                     LineMark(
                                         x: .value("Дата", item.date, unit: .day),
                                         y: .value("Звільнено (МБ)", item.amount / (1024 * 1024))
@@ -312,6 +252,9 @@ public struct DashboardView: View {
             }
             .padding()
         }
+        .task(id: historyManager.getBatches()) {
+            await recalculateStats()
+        }
         .alert("Звіт успішно збережено", isPresented: $showingExportSuccess) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -319,21 +262,100 @@ public struct DashboardView: View {
         }
     }
     
-    private func getCategoryFromPath(_ path: String) -> String {
-        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
-        let kindExtensions: [String: Set<String>] = [
-            "Зображення": ["jpg", "jpeg", "png", "gif", "bmp", "heic", "tiff", "svg", "webp"],
-            "Відео": ["mp4", "mov", "avi", "mkv", "wmv", "flv", "webm", "m4v"],
-            "Документи": ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "pages", "numbers", "key"],
-            "Аудіо": ["mp3", "wav", "m4a", "flac", "aac", "ogg", "wma"],
-            "Архіви": ["zip", "rar", "7z", "tar", "gz", "bz2", "dmg", "iso"]
-        ]
-        for (category, extensions) in kindExtensions {
-            if extensions.contains(ext) {
-                return category
+    private func recalculateStats() async {
+        let batches = historyManager.getBatches()
+        
+        let newStats = await Task.detached(priority: .userInitiated) { () -> DashboardStats in
+            let totalSorted = batches.reduce(0) { $0 + $1.operations.count }
+            
+            let totalSpaceOrganized = batches.reduce(0) { sum, batch in
+                sum + batch.operations.reduce(0) { $0 + $1.fileSize }
             }
+            
+            let sortingFreed = batches.reduce(0) { sum, batch in
+                sum + batch.operations.filter { $0.isTrashed }.reduce(0) { $0 + $1.fileSize }
+            }
+            let manualFreed = UserDefaults.standard.double(forKey: "FreedBytesTotal")
+            let totalSpaceFreed = sortingFreed + Int64(manualFreed)
+            
+            let sortingDuplicates = batches.reduce(0) { sum, batch in
+                sum + batch.operations.filter { $0.isTrashed }.count
+            }
+            let manualDuplicates = UserDefaults.standard.integer(forKey: "FreedDuplicatesCount")
+            let totalDuplicatesRemoved = sortingDuplicates + manualDuplicates
+            
+            // spaceFreedHistory
+            let dict = UserDefaults.standard.dictionary(forKey: "freed_history") as? [String: Double] ?? [:]
+            let df = DateFormatter()
+            df.dateFormat = "yyyy-MM-dd"
+            var historyItems: [FreedHistoryItem] = []
+            for (dateStr, val) in dict {
+                if let date = df.date(from: dateStr) {
+                    historyItems.append(FreedHistoryItem(date: date, amount: val))
+                }
+            }
+            historyItems.sort { $0.date < $1.date }
+            
+            // categoryStats
+            var categoryCounts: [String: Int] = [:]
+            for batch in batches {
+                for op in batch.operations {
+                    let category = Self.getCategoryFromPath(op.newPath)
+                    categoryCounts[category, default: 0] += 1
+                }
+            }
+            let categoryStats = categoryCounts.map { CategoryStat(category: $0.key, count: $0.value) }
+                .sorted { $0.count > $1.count }
+                
+            // dateStats
+            var dateCounts: [Date: Int] = [:]
+            let calendar = Calendar.current
+            for batch in batches {
+                let day = calendar.startOfDay(for: batch.timestamp)
+                dateCounts[day, default: 0] += batch.operations.count
+            }
+            let dateStats = Array(dateCounts.map { DateStat(date: $0.key, count: $0.value) }
+                .sorted { $0.date < $1.date }
+                .suffix(7))
+                
+            // destinationStats
+            var destCounts: [String: Int] = [:]
+            for batch in batches {
+                for op in batch.operations {
+                    if !op.isTrashed {
+                        let folderURL = URL(fileURLWithPath: op.newPath).deletingLastPathComponent()
+                        let folderName = folderURL.lastPathComponent
+                        if !folderName.isEmpty {
+                            destCounts[folderName, default: 0] += 1
+                        }
+                    }
+                }
+            }
+            let destinationStats = Array(destCounts.map { DestinationStat(folder: $0.key, count: $0.value) }
+                .sorted { $0.count > $1.count }
+                .prefix(5))
+                
+            return DashboardStats(
+                totalSorted: totalSorted,
+                totalSpaceOrganized: totalSpaceOrganized,
+                totalSpaceFreed: totalSpaceFreed,
+                totalDuplicatesRemoved: totalDuplicatesRemoved,
+                categoryStats: categoryStats,
+                dateStats: dateStats,
+                destinationStats: destinationStats,
+                spaceFreedHistory: historyItems
+            )
+        }.value
+        
+        await MainActor.run {
+            self.stats = newStats
         }
-        return "Інші"
+    }
+    
+    nonisolated private static func getCategoryFromPath(_ path: String) -> String {
+        let url = URL(fileURLWithPath: path)
+        let category = ConfigManager.shared.getFileCategory(url)
+        return category == "Інші файли" ? "Інші" : category
     }
     
     private func formatBytes(_ bytes: Int64) -> String {

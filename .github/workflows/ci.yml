@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.3.app
+
+      - name: Build Project
+        run: swift build
+
+      - name: Run Tests with Code Coverage
+        run: swift test --parallel --enable-code-coverage
+
+      - name: Verify Code Coverage
+        run: |
+          # Find the compiled test binary
+          TEST_BINARY=$(find .build/debug -name "*.xctest" -type d | while read bundle; do
+            binary_name=$(basename "$bundle" .xctest)
+            binary_path="$bundle/Contents/MacOS/$binary_name"
+            if [ -f "$binary_path" ]; then
+              echo "$binary_path"
+              break
+            fi
+          done)
+          
+          if [ -z "$TEST_BINARY" ]; then
+            # Fallback to linux/other structure just in case
+            TEST_BINARY=$(find .build/debug -maxdepth 1 -type f -executable -name "*Tests")
+          fi
+          
+          if [ -z "$TEST_BINARY" ]; then
+            echo "Error: Test binary not found!"
+            exit 1
+          fi
+          
+          echo "Found Test Binary: $TEST_BINARY"
+          
+          # Generate coverage report for Models
+          xcrun llvm-cov report "$TEST_BINARY" -instr-profile=.build/debug/codecov/default.profdata Sources/SmartFileSorter/Models/ > coverage_report.txt
+          
+          # Run python parser to verify coverage is >= 60%
+          python3 -c "
+          import sys, re
+          with open('coverage_report.txt') as f:
+              content = f.read()
+          print(content)
+          lines = content.splitlines()
+          total_line = [l for l in lines if l.startswith('TOTAL')]
+          if not total_line:
+              print('Error: Could not find TOTAL row in coverage report')
+              sys.exit(1)
+          total_cols = total_line[0].split()
+          percentages = [c for c in total_cols if '%' in c]
+          if len(percentages) < 3:
+              print(f'Error: Could not find enough percentage columns in TOTAL row: {total_cols}')
+              sys.exit(1)
+          cov_val = float(percentages[2].replace('%', ''))
+          print(f'Line Coverage of Models: {cov_val}%')
+          if cov_val < 60.0:
+              print(f'Error: Coverage {cov_val}% is below the required 60%')
+              sys.exit(1)
+          print('Success: Coverage requirement met!')
+          "

@@ -28,6 +28,9 @@ struct MainView: View {
         "Інші файли": true
     ]
     
+    @State private var showExclusionsEditor = false
+    @State private var showCategoriesEditor = false
+    
     var body: some View {
         ZStack {
             NavigationSplitView {
@@ -177,6 +180,17 @@ struct MainView: View {
             }
             .padding()
             .frame(width: 320, height: 180)
+        }
+        .sheet(isPresented: $showExclusionsEditor) {
+            ExclusionsEditorSheet()
+        }
+        .sheet(isPresented: $showCategoriesEditor, onDismiss: {
+            syncCategories()
+        }) {
+            CategoriesEditorSheet()
+        }
+        .onAppear {
+            syncCategories()
         }
     }
     
@@ -387,6 +401,15 @@ struct MainView: View {
                 }
                 .pickerStyle(.inline)
             }
+            
+            Section(header: Text("Параметри сортування")) {
+                Button("Редагувати виключення файлів...") {
+                    showExclusionsEditor = true
+                }
+                Button("Редагувати категорії файлів...") {
+                    showCategoriesEditor = true
+                }
+            }
         }
         .padding()
     }
@@ -498,5 +521,14 @@ struct MainView: View {
             return .orange
         }
         return .white
+    }
+    
+    private func syncCategories() {
+        var newDict: [String: Bool] = [:]
+        for cat in ConfigManager.shared.categories.keys {
+            newDict[cat] = enabledCategories[cat] ?? true
+        }
+        newDict["Інші файли"] = enabledCategories["Інші файли"] ?? true
+        enabledCategories = newDict
     }
 }

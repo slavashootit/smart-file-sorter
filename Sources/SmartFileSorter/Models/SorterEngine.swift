@@ -53,45 +53,27 @@ public class SorterEngine {
     public init() {}
     
     // Категорії та відповідні розширення файлів
-    public let fileCategories: [String: Set<String>] = [
-        "Зображення": ["jpg", "jpeg", "png", "gif", "bmp", "heic", "tiff", "svg", "webp"],
-        "Відео": ["mp4", "mov", "avi", "mkv", "wmv", "flv", "webm", "m4v"],
-        "Документи": ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "rtf", "odt", "csv", "pages", "numbers", "key"],
-        "Аудіо": ["mp3", "wav", "m4a", "flac", "aac", "ogg", "wma"],
-        "Архіви": ["zip", "rar", "7z", "tar", "gz", "dmg", "pkg"]
-    ]
+    public var fileCategories: [String: Set<String>] {
+        var result: [String: Set<String>] = [:]
+        for (category, extensions) in ConfigManager.shared.categories {
+            result[category] = Set(extensions)
+        }
+        return result
+    }
     
     private let monthsUa = [
         1: "Січень", 2: "Лютий", 3: "Березень", 4: "Квітень", 5: "Травень", 6: "Червень",
         7: "Липень", 8: "Серпень", 9: "Вересень", 10: "Жовтень", 11: "Листопад", 12: "Грудень"
     ]
     
-    private let excludedNames: Set<String> = ["Відео", "Зображення", "Документи", "Аудіо", "Архіви", "Дублікати", "Інші файли"]
-    
-
-    
     // Перевірка, чи папка має бути виключена
     public func isExcludedDir(_ url: URL) -> Bool {
-        let name = url.lastPathComponent
-        if excludedNames.contains(name) {
-            return true
-        }
-        if name.count == 4, name.allSatisfy({ $0.isNumber }) {
-            return true
-        }
-        return false
+        return ConfigManager.shared.shouldExclude(url: url)
     }
-    
     
     // Класифікувати один файл за розширенням
     public func getFileCategory(_ url: URL) -> String {
-        let ext = url.pathExtension.lowercased()
-        for (category, extensions) in fileCategories {
-            if extensions.contains(ext) {
-                return category
-            }
-        }
-        return "Інші файли"
+        return ConfigManager.shared.getFileCategory(url)
     }
     
     // Рекурсивний аналіз папки для визначення категорії (чиста/змішана/порожня)
@@ -268,20 +250,55 @@ public class SorterEngine {
                         if Task.isCancelled { break }
                         for url in urls {
                             if Task.isCancelled { break }
-                            if let pass1 = XXHash64.getPass1Hash(url: url) {
-                                let key = "\(size)-\(pass1)"
+                            
+                            let mtime = ((try? fileManager.attributesOfItem(atPath: url.path)[.modificationDate] as? Date)?.timeIntervalSince1970) ?? 0
+                            
+                            var pass1: String? = nil
+                             if let hashes = await HashCache.shared.getHashes(for: url, size: size, mtime: mtime) {
+                                 pass1 = hashes.pass1
+                             }
+                            
+                            if pass1 == nil {
+                                if let calculated = XXHash64.getPass1Hash(url: url) {
+                                    pass1 = calculated
+                                    await HashCache.shared.store(url: url, size: size, mtime: mtime, pass1: calculated, pass2: nil)
+                                }
+                            }
+                            
+                            if let finalPass1 = pass1 {
+                                let key = "\(size)-\(finalPass1)"
                                 pass1Map[key, default: []].append(url)
                             }
                         }
                     }
                     
-                    for (_, urls) in pass1Map where urls.count > 1 {
+                    for (key, urls) in pass1Map where urls.count > 1 {
                         if Task.isCancelled { break }
                         var pass2Map: [String: [URL]] = [:]
+                        
+                        let components = key.components(separatedBy: "-")
+                        let pass1Hash = components.dropFirst().joined(separator: "-")
+                        
                         for url in urls {
                             if Task.isCancelled { break }
-                            if let pass2 = XXHash64.getPass2Hash(url: url, checkCancellation: { Task.isCancelled }) {
-                                pass2Map[pass2, default: []].append(url)
+                            
+                            let size = (try? fileManager.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
+                            let mtime = ((try? fileManager.attributesOfItem(atPath: url.path)[.modificationDate] as? Date)?.timeIntervalSince1970) ?? 0
+                            
+                            var pass2: String? = nil
+                             if let hashes = await HashCache.shared.getHashes(for: url, size: size, mtime: mtime) {
+                                 pass2 = hashes.pass2
+                             }
+                            
+                            if pass2 == nil {
+                                if let calculated = XXHash64.getPass2Hash(url: url, checkCancellation: { Task.isCancelled }) {
+                                    pass2 = calculated
+                                    await HashCache.shared.store(url: url, size: size, mtime: mtime, pass1: pass1Hash, pass2: calculated)
+                                }
+                            }
+                            
+                            if let finalPass2 = pass2 {
+                                pass2Map[finalPass2, default: []].append(url)
                             }
                         }
                         

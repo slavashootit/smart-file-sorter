@@ -19,7 +19,6 @@ struct SunburstArc: Shape {
         let radius = min(rect.width, rect.height) / 2
         let innerRadius = radius * 0.6
         
-        let startRad = startAngle.radians
         let endRad = endAngle.radians
         
         path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
@@ -35,11 +34,25 @@ struct SunburstArc: Shape {
     }
 }
 
+struct SunburstSegment: Identifiable, Equatable {
+    let id = UUID()
+    let child: DiskNode
+    let startAngle: Angle
+    let endAngle: Angle
+    
+    static func == (lhs: SunburstSegment, rhs: SunburstSegment) -> Bool {
+        lhs.child == rhs.child &&
+        lhs.startAngle == rhs.startAngle &&
+        lhs.endAngle == rhs.endAngle
+    }
+}
+
 struct SunburstChartView: View {
     @StateObject private var analyzer = DiskAnalyzer()
     @State private var scanFolder = NSHomeDirectory() + "/Downloads"
     @State private var hoveredNode: DiskNode? = nil
     @State private var hoverPoint: CGPoint = .zero
+    @State private var segments: [SunburstSegment] = []
     
     // Spring animation for drilling down
     private let drillAnimation = Animation.spring(response: 0.6, dampingFraction: 0.8, blendDuration: 0.6)
@@ -114,16 +127,9 @@ struct SunburstChartView: View {
                         GeometryReader { geo in
                             ZStack {
                                 // Draw radial segments
-                                let totalSize = current.size
-                                var currentAngle = Angle(degrees: 0)
-                                
-                                ForEach(current.children.prefix(12)) { child in
-                                    let percentage = Double(child.size) / Double(totalSize)
-                                    let sweep = percentage * 360.0
-                                    let start = currentAngle
-                                    let end = currentAngle + Angle(degrees: sweep)
-                                    
-                                    SunburstArc(startAngle: start, endAngle: end)
+                                ForEach(segments) { segment in
+                                    let child = segment.child
+                                    SunburstArc(startAngle: segment.startAngle, endAngle: segment.endAngle)
                                         .fill(colorForNode(child))
                                         .opacity(hoveredNode == child ? 1.0 : 0.85)
                                         .scaleEffect(hoveredNode == child ? 1.05 : 1.0)
@@ -139,8 +145,6 @@ struct SunburstChartView: View {
                                         .contextMenu {
                                             contextMenuForNode(child)
                                         }
-                                    
-                                    let _ = { currentAngle = end }()
                                 }
                                 
                                 // Center parent circle
@@ -223,6 +227,13 @@ struct SunburstChartView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .task(id: analyzer.currentNode) {
+            if let current = analyzer.currentNode {
+                updateSegments(for: current)
+            } else {
+                segments = []
+            }
+        }
     }
     
     // Tooltip overlay
@@ -265,6 +276,29 @@ struct SunburstChartView: View {
         let colors: [Color] = [.blue, .purple, .pink, .orange, .yellow, .green, .cyan, .teal]
         let hashValue = abs(node.name.hashValue)
         return colors[hashValue % colors.count]
+    }
+    
+    private func updateSegments(for parent: DiskNode) {
+        let totalSize = parent.size
+        guard totalSize > 0 else {
+            self.segments = []
+            return
+        }
+        
+        var calculatedSegments: [SunburstSegment] = []
+        var currentAngle = Angle(degrees: 0)
+        
+        for child in parent.children.prefix(12) {
+            let percentage = Double(child.size) / Double(totalSize)
+            let sweep = percentage * 360.0
+            let start = currentAngle
+            let end = currentAngle + Angle(degrees: sweep)
+            
+            calculatedSegments.append(SunburstSegment(child: child, startAngle: start, endAngle: end))
+            currentAngle = end
+        }
+        
+        self.segments = calculatedSegments
     }
     
     @ViewBuilder

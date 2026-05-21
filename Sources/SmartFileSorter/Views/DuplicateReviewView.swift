@@ -26,6 +26,19 @@ public final class QuickLookHelper: NSObject, QLPreviewPanelDataSource, QLPrevie
     }
 }
 
+struct VideoMetadata: Equatable {
+    let width: Int?
+    let height: Int?
+    let duration: String
+    
+    var displayString: String {
+        if let w = width, let h = height {
+            return "\(w)x\(h) • \(duration)"
+        }
+        return duration
+    }
+}
+
 public struct DuplicateReviewView: View {
     private var reduceMotion: Bool {
         return NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -40,6 +53,7 @@ public struct DuplicateReviewView: View {
     @State private var checkedFiles: Set<URL> = []
     @State private var showConfirmDelete = false
     @State private var selectedSmartSelection = "Вручну"
+    @State private var metadata: [URL: VideoMetadata] = [:]
     
     private let smartSelectionOptions = ["Вручну", "Залишити найстаріші", "Залишити найновіші", "Залишити в Завантаженнях"]
     
@@ -187,10 +201,10 @@ public struct DuplicateReviewView: View {
                                                     .lineLimit(1)
                                                     .truncationMode(.middle)
                                                 
-                                                if let videoInfo = getVideoMetadata(for: file) {
+                                                if let videoInfo = metadata[file] {
                                                     Text("•")
                                                         .foregroundColor(.secondary)
-                                                    Text(videoInfo)
+                                                    Text(videoInfo.displayString)
                                                         .foregroundColor(.blue)
                                                         .bold()
                                                 }
@@ -216,6 +230,34 @@ public struct DuplicateReviewView: View {
                                         .buttonStyle(.plain)
                                     }
                                     .padding(.vertical, 4)
+                                    .task(id: file) {
+                                        guard metadata[file] == nil else { return }
+                                        let ext = file.pathExtension.lowercased()
+                                        guard ["mp4", "mov", "m4v", "avi", "mkv", "webm"].contains(ext) else { return }
+                                        
+                                        let info = await Task.detached(priority: .userInitiated) { () -> VideoMetadata? in
+                                            let asset = AVURLAsset(url: file)
+                                            let duration = asset.duration
+                                            let durationSeconds = CMTimeGetSeconds(duration)
+                                            guard !durationSeconds.isNaN, durationSeconds > 0 else { return nil }
+                                            
+                                            let minutes = Int(durationSeconds) / 60
+                                            let seconds = Int(durationSeconds) % 60
+                                            let durationStr = String(format: "%d:%02d", minutes, seconds)
+                                            
+                                            if let track = asset.tracks(withMediaType: .video).first {
+                                                let size = track.naturalSize
+                                                let width = Int(size.width)
+                                                let height = Int(size.height)
+                                                return VideoMetadata(width: width, height: height, duration: durationStr)
+                                            }
+                                            return VideoMetadata(width: nil, height: nil, duration: durationStr)
+                                        }.value
+                                        
+                                        if let info = info {
+                                            metadata[file] = info
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -388,28 +430,6 @@ public struct DuplicateReviewView: View {
     }
     
     
-    private func getVideoMetadata(for url: URL) -> String? {
-        let ext = url.pathExtension.lowercased()
-        guard ["mp4", "mov", "m4v", "avi", "mkv", "webm"].contains(ext) else { return nil }
-        
-        let asset = AVURLAsset(url: url)
-        let duration = asset.duration
-        let durationSeconds = CMTimeGetSeconds(duration)
-        guard !durationSeconds.isNaN, durationSeconds > 0 else { return nil }
-        
-        let minutes = Int(durationSeconds) / 60
-        let seconds = Int(durationSeconds) % 60
-        let durationStr = String(format: "%d:%02d", minutes, seconds)
-        
-        if let track = asset.tracks(withMediaType: .video).first {
-            let size = track.naturalSize
-            let width = Int(size.width)
-            let height = Int(size.height)
-            return "\(width)x\(height) • \(durationStr)"
-        }
-        
-        return durationStr
-    }
     
     private func formatBytes(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()

@@ -261,42 +261,10 @@ public final class CleanupManager: ObservableObject {
     }
     
     private func getFileCategory(_ url: URL) -> String {
-        let ext = url.pathExtension.lowercased()
-        let fileCategories: [String: Set<String>] = [
-            "Зображення": Set(["png", "jpg", "jpeg", "gif", "heic", "tiff", "raw", "psd"]),
-            "Відео": Set(["mp4", "mov", "avi", "mkv", "webm", "flv"]),
-            "Документи": Set(["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "pages", "numbers", "key"]),
-            "Аудіо": Set(["mp3", "wav", "aac", "flac", "m4a", "ogg"]),
-            "Архіви": Set(["zip", "tar", "gz", "rar", "7z", "dmg", "pkg"])
-        ]
-        
-        for (category, extensions) in fileCategories {
-            if extensions.contains(ext) {
-                return category
-            }
-        }
-        return "Інші файли"
+        return ConfigManager.shared.getFileCategory(url)
     }
     
     private func shouldExclude(path: String) -> Bool {
-        if path.hasPrefix("/System") || path.hasPrefix("/Library") || path.hasPrefix("/private") ||
-           path.hasPrefix("/usr") || path.hasPrefix("/bin") || path.hasPrefix("/sbin") {
-            return true
-        }
-        
-        let homeDir = NSHomeDirectory()
-        if path.hasPrefix("\(homeDir)/Library") || path.hasPrefix("\(homeDir)/.Trash") {
-            return true
-        }
-        
-        let pathComponents = URL(fileURLWithPath: path).pathComponents
-        for component in pathComponents {
-            let compLower = component.lowercased()
-            if compLower == ".git" || compLower == "node_modules" || compLower == ".trash" ||
-               compLower == "timemachine.backupdb" || compLower.hasSuffix(".backupbundle") || compLower.hasSuffix(".backupdb") {
-                return true
-            }
-        }
-        return false
+        return ConfigManager.shared.shouldExclude(url: URL(fileURLWithPath: path))
     }
 }

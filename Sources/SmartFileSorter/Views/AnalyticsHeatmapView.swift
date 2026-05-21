@@ -4,6 +4,19 @@ struct AnalyticsHeatmapView: View {
     @ObservedObject private var historyManager = HistoryManager.shared
     @State private var selectedFolder = "Downloads"
     
+    @State private var topDomains: [(String, Int)] = [
+        ("github.com", 7),
+        ("google.com", 4),
+        ("unsplash.com", 3)
+    ]
+    @State private var activityHeatmap: [Int: Int] = [
+        9: 2,
+        11: 4,
+        14: 3,
+        17: 5,
+        18: 2
+    ]
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -24,14 +37,13 @@ struct AnalyticsHeatmapView: View {
                         Text("Топ джерел завантажень")
                             .font(.headline)
                         
-                        let domains = getTopDomains()
-                        if domains.isEmpty {
+                        if topDomains.isEmpty {
                             Text("Немає даних про джерела завантажень")
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
                             VStack(spacing: 12) {
-                                ForEach(domains, id: \.0) { domain, count in
+                                ForEach(topDomains, id: \.0) { domain, count in
                                     HStack {
                                         Text(domain)
                                             .foregroundColor(.primary)
@@ -65,15 +77,13 @@ struct AnalyticsHeatmapView: View {
                         Text("Активність сортування за годинами")
                             .font(.headline)
                         
-                        let heatmap = getActivityHeatmap()
-                        
                         // Render grid of 24 hours (3 rows of 8 hours)
                         VStack(spacing: 8) {
                             ForEach(0..<3) { row in
                                 HStack(spacing: 8) {
                                     ForEach(0..<8) { col in
                                         let hour = row * 8 + col
-                                        let count = heatmap[hour] ?? 0
+                                        let count = activityHeatmap[hour] ?? 0
                                         
                                         VStack {
                                             RoundedRectangle(cornerRadius: 4)
@@ -138,9 +148,9 @@ struct AnalyticsHeatmapView: View {
                             let y = geo.size.height - (CGFloat(val / maxValue) * (geo.size.height - 20))
                             
                             Circle()
-                                .fill(Color.purple)
-                                .frame(width: 8, height: 8)
-                                .position(x: x, y: y)
+                               .fill(Color.purple)
+                               .frame(width: 8, height: 8)
+                               .position(x: x, y: y)
                         }
                     }
                     .frame(height: 140)
@@ -151,32 +161,60 @@ struct AnalyticsHeatmapView: View {
                 .padding(.horizontal)
             }
         }
+        .task(id: historyManager.getBatches()) {
+            await recalculateAnalytics()
+        }
     }
     
-    private func getTopDomains() -> [(String, Int)] {
-        var domainCounts: [String: Int] = [:]
+    private func recalculateAnalytics() async {
         let batches = historyManager.getBatches()
         
-        for batch in batches {
-            for op in batch.operations {
-                let fileURL = URL(fileURLWithPath: op.originalPath)
-                if let domain = extractDomain(from: fileURL) {
-                    domainCounts[domain, default: 0] += 1
+        let result = await Task.detached(priority: .userInitiated) { () -> ([(String, Int)], [Int: Int]) in
+            var domainCounts: [String: Int] = [:]
+            
+            for batch in batches {
+                for op in batch.operations {
+                    let fileURL = URL(fileURLWithPath: op.originalPath)
+                    if let domain = Self.extractDomain(from: fileURL) {
+                        domainCounts[domain, default: 0] += 1
+                    }
                 }
             }
-        }
+            
+            // Mock fallback domains if empty, to make the layout look premium immediately
+            if domainCounts.isEmpty {
+                domainCounts["github.com"] = 7
+                domainCounts["google.com"] = 4
+                domainCounts["unsplash.com"] = 3
+            }
+            
+            let sortedDomains = domainCounts.sorted { $0.value > $1.value }
+            
+            var heatmap: [Int: Int] = [:]
+            for batch in batches {
+                let hour = Calendar.current.component(.hour, from: batch.timestamp)
+                heatmap[hour, default: 0] += 1
+            }
+            
+            // Mock fallback values if empty
+            if heatmap.isEmpty {
+                heatmap[9] = 2
+                heatmap[11] = 4
+                heatmap[14] = 3
+                heatmap[17] = 5
+                heatmap[18] = 2
+            }
+            
+            return (sortedDomains, heatmap)
+        }.value
         
-        // Mock fallback domains if empty, to make the layout look premium immediately
-        if domainCounts.isEmpty {
-            domainCounts["github.com"] = 7
-            domainCounts["google.com"] = 4
-            domainCounts["unsplash.com"] = 3
+        await MainActor.run {
+            self.topDomains = result.0
+            self.activityHeatmap = result.1
         }
-        
-        return domainCounts.sorted { $0.value > $1.value }
     }
     
-    private func extractDomain(from url: URL) -> String? {
+    private static func extractDomain(from url: URL) -> String? {
         let itemRef = MDItemCreate(nil, url.path as CFString)
         if let mdItem = itemRef,
            let values = MDItemCopyAttribute(mdItem, kMDItemWhereFroms) as? [String],
@@ -186,27 +224,6 @@ struct AnalyticsHeatmapView: View {
             }
         }
         return nil
-    }
-    
-    private func getActivityHeatmap() -> [Int: Int] {
-        var heatmap: [Int: Int] = [:]
-        let batches = historyManager.getBatches()
-        
-        for batch in batches {
-            let hour = Calendar.current.component(.hour, from: batch.timestamp)
-            heatmap[hour, default: 0] += 1
-        }
-        
-        // Mock fallback values if empty
-        if heatmap.isEmpty {
-            heatmap[9] = 2
-            heatmap[11] = 4
-            heatmap[14] = 3
-            heatmap[17] = 5
-            heatmap[18] = 2
-        }
-        
-        return heatmap
     }
     
     private func colorForHeatmapCount(_ count: Int) -> Color {

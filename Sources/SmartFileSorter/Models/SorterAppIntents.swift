@@ -26,14 +26,11 @@ public struct SortFolderIntent: AppIntent {
     public func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let mode: SortMode = (sortMode.lowercased() == "date") ? .date : .type
         
-        let categories: [String: Bool] = [
-            "Зображення": true,
-            "Відео": true,
-            "Документи": true,
-            "Аудіо": true,
-            "Архіви": true,
-            "Інші файли": true
-        ]
+        var categories: [String: Bool] = [:]
+        for cat in ConfigManager.shared.categories.keys {
+            categories[cat] = true
+        }
+        categories["Інші файли"] = true
         
         let logsStream = SorterEngine.shared.sortFiles(
             folderPath: folder.path,

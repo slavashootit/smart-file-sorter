@@ -25,15 +25,11 @@ public final class DuplicateFinder: ObservableObject {
     @Published public var potentialSavings: Int64 = 0
     
     private var isCancelled = false
-    private let queue = OperationQueue()
     
-    public init() {
-        queue.maxConcurrentOperationCount = ProcessInfo.processInfo.activeProcessorCount
-    }
+    public init() {}
     
     public func cancelScan() {
         isCancelled = true
-        queue.cancelAllOperations()
         DispatchQueue.main.async {
             self.isScanning = false
         }
@@ -51,7 +47,7 @@ public final class DuplicateFinder: ObservableObject {
             self.potentialSavings = 0
         }
         
-        DispatchQueue.global(qos: .userInitiated).async {
+        Task {
             let fileManager = FileManager.default
             let rootURL = URL(fileURLWithPath: path)
             var allFiles: [URL] = []
@@ -122,39 +118,59 @@ public final class DuplicateFinder: ObservableObject {
             var pass1Map: [String: [URL]] = [:]
             var completedCount = 0
             
-            let pass1Group = DispatchGroup()
+            let maxConcurrentTasks = ProcessInfo.processInfo.activeProcessorCount
             
-            for file in pass1Candidates {
-                if self.isCancelled { break }
-                
-                let operation = BlockOperation {
-                    if self.isCancelled { return }
+            await withTaskGroup(of: Void.self) { group in
+                var activeTasks = 0
+                for file in pass1Candidates {
+                    if self.isCancelled { break }
                     
-                    if let hash1 = self.getPass1Hash(url: file) {
-                        let size = (try? fileManager.attributesOfItem(atPath: file.path)[.size] as? Int64) ?? 0
-                        let key = "\(size)-\(hash1)"
+                    if activeTasks >= maxConcurrentTasks {
+                        _ = await group.next()
+                        activeTasks -= 1
+                    }
+                    
+                    activeTasks += 1
+                    group.addTask {
+                        if self.isCancelled { return }
                         
-                        lock.lock()
-                        pass1Map[key, default: []].append(file)
-                        completedCount += 1
-                        let currentProgress = (Double(completedCount) / Double(totalCandidatesCount)) * 0.5
-                        let filename = file.lastPathComponent
-                        DispatchQueue.main.async {
-                            self.progress = currentProgress
-                            self.currentFile = "[Прохід 1] Аналіз: \(filename)"
+                        let size = (try? fileManager.attributesOfItem(atPath: file.path)[.size] as? Int64) ?? 0
+                        let mtime = ((try? fileManager.attributesOfItem(atPath: file.path)[.modificationDate] as? Date)?.timeIntervalSince1970) ?? 0
+                        
+                        var hash1: String? = nil
+                        if let hashes = await HashCache.shared.getHashes(for: file, size: size, mtime: mtime) {
+                            hash1 = hashes.pass1
                         }
-                        lock.unlock()
+                        
+                        if hash1 == nil {
+                            if let calculated = self.getPass1Hash(url: file) {
+                                hash1 = calculated
+                                await HashCache.shared.store(url: file, size: size, mtime: mtime, pass1: calculated, pass2: nil)
+                            }
+                        }
+                        
+                        if let finalHash1 = hash1 {
+                            let key = "\(size)-\(finalHash1)"
+                            
+                            lock.lock()
+                            pass1Map[key, default: []].append(file)
+                            completedCount += 1
+                            let currentProgress = (Double(completedCount) / Double(totalCandidatesCount)) * 0.5
+                            let filename = file.lastPathComponent
+                            DispatchQueue.main.async {
+                                self.progress = currentProgress
+                                self.currentFile = "[Прохід 1] Аналіз: \(filename)"
+                            }
+                            lock.unlock()
+                        }
                     }
                 }
                 
-                pass1Group.enter()
-                operation.completionBlock = {
-                    pass1Group.leave()
+                while activeTasks > 0 {
+                    _ = await group.next()
+                    activeTasks -= 1
                 }
-                self.queue.addOperation(operation)
             }
-            
-            pass1Group.wait()
             
             if self.isCancelled {
                 DispatchQueue.main.async { completion() }
@@ -176,40 +192,66 @@ public final class DuplicateFinder: ObservableObject {
             // 4. Другий прохід (Pass 2): Повний потоковий хеш
             var pass2Map: [String: [URL]] = [:]
             var pass2CompletedCount = 0
-            let pass2Group = DispatchGroup()
             
-            for (_, files) in pass2CandidatesMap {
-                if self.isCancelled { break }
-                
-                for file in files {
+            await withTaskGroup(of: Void.self) { group in
+                var activeTasks = 0
+                for (key, files) in pass2CandidatesMap {
                     if self.isCancelled { break }
                     
-                    let operation = BlockOperation {
-                        if self.isCancelled { return }
+                    let components = key.components(separatedBy: "-")
+                    let pass1Hash = components.dropFirst().joined(separator: "-")
+                    
+                    for file in files {
+                        if self.isCancelled { break }
                         
-                        if let hash2 = self.getPass2Hash(url: file, useSHA256: useSHA256) {
-                            lock.lock()
-                            pass2Map[hash2, default: []].append(file)
-                            pass2CompletedCount += 1
-                            let currentProgress = 0.5 + ((Double(pass2CompletedCount) / Double(totalPass2Count)) * 0.5)
-                            let filename = file.lastPathComponent
-                            DispatchQueue.main.async {
-                                self.progress = currentProgress
-                                self.currentFile = "[Прохід 2] Хешування: \(filename)"
+                        if activeTasks >= maxConcurrentTasks {
+                            _ = await group.next()
+                            activeTasks -= 1
+                        }
+                        
+                        activeTasks += 1
+                        group.addTask {
+                            if self.isCancelled { return }
+                            
+                            let size = (try? fileManager.attributesOfItem(atPath: file.path)[.size] as? Int64) ?? 0
+                            let mtime = ((try? fileManager.attributesOfItem(atPath: file.path)[.modificationDate] as? Date)?.timeIntervalSince1970) ?? 0
+                            
+                            var hash2: String? = nil
+                            if let hashes = await HashCache.shared.getHashes(for: file, size: size, mtime: mtime) {
+                                hash2 = hashes.pass2
                             }
-                            lock.unlock()
+                            
+                            if hash2 == nil {
+                                if let calculated = self.getPass2Hash(url: file, useSHA256: useSHA256) {
+                                    hash2 = calculated
+                                    // Only cache in SQLite if we are NOT using SHA-256
+                                    if !useSHA256 {
+                                        await HashCache.shared.store(url: file, size: size, mtime: mtime, pass1: pass1Hash, pass2: calculated)
+                                    }
+                                }
+                            }
+                            
+                            if let finalHash2 = hash2 {
+                                lock.lock()
+                                pass2Map[finalHash2, default: []].append(file)
+                                pass2CompletedCount += 1
+                                let currentProgress = 0.5 + ((Double(pass2CompletedCount) / Double(totalPass2Count)) * 0.5)
+                                let filename = file.lastPathComponent
+                                DispatchQueue.main.async {
+                                    self.progress = currentProgress
+                                    self.currentFile = "[Прохід 2] Хешування: \(filename)"
+                                }
+                                lock.unlock()
+                            }
                         }
                     }
-                    
-                    pass2Group.enter()
-                    operation.completionBlock = {
-                        pass2Group.leave()
-                    }
-                    self.queue.addOperation(operation)
+                }
+                
+                while activeTasks > 0 {
+                    _ = await group.next()
+                    activeTasks -= 1
                 }
             }
-            
-            pass2Group.wait()
             
             if self.isCancelled {
                 DispatchQueue.main.async { completion() }
@@ -223,7 +265,7 @@ public final class DuplicateFinder: ObservableObject {
             
             for (hash, files) in pass2Map {
                 if files.count > 1 {
-                    // Фільтруємо hardlinks: якщо inode однаковий, це не дублікат
+                    // Фільтруємо hardlinks: якщо inode開放однаковий, це не дублікат
                     var uniqueInodes = Set<String>()
                     var filteredFiles: [URL] = []
                     
