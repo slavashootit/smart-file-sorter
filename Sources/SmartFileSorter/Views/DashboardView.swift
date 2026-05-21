@@ -68,9 +68,9 @@ public struct DashboardView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Аналітика сортування")
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .font(DT.Font.bodyWeight(24, weight: .bold))
                         Text("Статистика роботи Розумного сортувальника файлів")
-                            .font(.subheadline)
+                            .font(DT.Font.body(13))
                             .foregroundColor(.secondary)
                     }
                     
@@ -81,6 +81,7 @@ public struct DashboardView: View {
                             Image(systemName: "square.and.arrow.up")
                             Text("Експорт звіту (CSV)")
                         }
+                        .font(DT.Font.body(13))
                         .padding(.vertical, 8)
                         .padding(.horizontal, 14)
                         .background(Color.blue)
@@ -93,32 +94,36 @@ public struct DashboardView: View {
                 
                 // Метрики
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                    MetricCard(
-                        title: "Впорядковано",
-                        value: "\(stats.totalSorted)",
-                        icon: "doc.text.fill",
-                        gradient: Gradient(colors: [Color.blue, Color.cyan])
+                    BentoStat(
+                        label: "Впорядковано",
+                        value: stats.totalSorted,
+                        delta: stats.totalSorted > 0 ? "↑ \(stats.dateStats.last?.count ?? 0)" : nil,
+                        trend: stats.dateStats.suffix(7).map { Double($0.count) },
+                        tint: DT.Color.accent
                     )
                     
-                    MetricCard(
-                        title: "Організовано",
-                        value: formatBytes(stats.totalSpaceOrganized),
-                        icon: "internaldrive.fill",
-                        gradient: Gradient(colors: [Color.purple, Color.pink])
+                    BentoStat(
+                        label: "Організовано",
+                        value: Int(stats.totalSpaceOrganized),
+                        formattedValue: formatBytes(stats.totalSpaceOrganized),
+                        trend: stats.dateStats.suffix(7).map { Double($0.count) },
+                        tint: DT.Color.accentStrong
                     )
                     
-                    MetricCard(
-                        title: "Звільнено простору",
-                        value: formatBytes(stats.totalSpaceFreed),
-                        icon: "arrow.down.to.line.circle.fill",
-                        gradient: Gradient(colors: [Color.green, Color.teal])
+                    BentoStat(
+                        label: "Звільнено простору",
+                        value: Int(stats.totalSpaceFreed),
+                        formattedValue: formatBytes(stats.totalSpaceFreed),
+                        delta: stats.totalSpaceFreed > 0 ? "↑" : nil,
+                        trend: stats.spaceFreedHistory.suffix(7).map { $0.amount },
+                        tint: DT.Color.success
                     )
                     
-                    MetricCard(
-                        title: "Видалено копій",
-                        value: "\(stats.totalDuplicatesRemoved)",
-                        icon: "trash.fill",
-                        gradient: Gradient(colors: [Color.orange, Color.red])
+                    BentoStat(
+                        label: "Видалено копій",
+                        value: stats.totalDuplicatesRemoved,
+                        trend: stats.spaceFreedHistory.suffix(7).map { $0.amount },
+                        tint: DT.Color.warning
                     )
                 }
                 

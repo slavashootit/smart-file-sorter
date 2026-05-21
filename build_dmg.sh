@@ -66,7 +66,7 @@ cat <<EOF > "$APP_DIR/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.5.0</string>
+    <string>1.6.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
@@ -172,6 +172,17 @@ fi
 echo "[5/6] Копіювання ресурсів локалізації..."
 cp -R "$WORKSPACE_DIR/Sources/SmartFileSorter/Resources/en.lproj" "$APP_DIR/Contents/Resources/"
 cp -R "$WORKSPACE_DIR/Sources/SmartFileSorter/Resources/uk.lproj" "$APP_DIR/Contents/Resources/"
+
+# 5.1. Копіюємо шрифти
+echo "[5.1/6] Копіювання шрифтів..."
+if [ -d "$WORKSPACE_DIR/Sources/SmartFileSorter/Resources/Fonts" ]; then
+    mkdir -p "$APP_DIR/Contents/Resources/Fonts"
+    cp -R "$WORKSPACE_DIR/Sources/SmartFileSorter/Resources/Fonts/"*.otf "$APP_DIR/Contents/Resources/Fonts/" 2>/dev/null || true
+    cp -R "$WORKSPACE_DIR/Sources/SmartFileSorter/Resources/Fonts/"*.ttf "$APP_DIR/Contents/Resources/Fonts/" 2>/dev/null || true
+    echo "Шрифти скопійовано."
+else
+    echo "Попередження: Папку шрифтів не знайдено."
+fi
 
 # 5.5. Локальне підписання коду
 echo "[5.5/6] Локальне підписання коду (Ad-hoc Codesign)..."

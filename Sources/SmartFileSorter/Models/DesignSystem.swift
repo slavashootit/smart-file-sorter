@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import CoreText
 
 // Extension to load hex colors
 extension Color {
@@ -72,6 +73,76 @@ public enum DT {  // Design Tokens — коротко, бо використов
         public static let springFast = SwiftUI.Animation.spring(response: 0.25,
                                                                 dampingFraction: 0.8)
         public static let smooth     = SwiftUI.Animation.easeInOut(duration: 0.2)
+    }
+
+    public enum Font {
+        public static let display = "Geist"
+        public static let mono    = "GeistMono"
+        public static let serif   = "InstrumentSerif"
+
+        public static func body(_ size: CGFloat = 13) -> SwiftUI.Font {
+            .custom(display, size: size)
+        }
+        public static func bodyWeight(_ size: CGFloat = 13, weight: SwiftUI.Font.Weight = .regular) -> SwiftUI.Font {
+            .custom(display, size: size).weight(weight)
+        }
+        public static func mono(_ size: CGFloat = 12) -> SwiftUI.Font {
+            .custom(mono, size: size)
+        }
+        public static func accent(_ size: CGFloat = 22) -> SwiftUI.Font {
+            .custom(serif, size: size).italic()
+        }
+    }
+}
+
+// MARK: - Font Registration
+
+public enum FontRegistrar {
+    private static var isRegistered = false
+
+    public static func registerAll() {
+        guard !isRegistered else { return }
+        isRegistered = true
+
+        let fontNames = [
+            "Geist-Regular",
+            "Geist-Medium",
+            "Geist-SemiBold",
+            "GeistMono-Regular",
+            "GeistMono-Medium",
+            "InstrumentSerif-Italic"
+        ]
+
+        for name in fontNames {
+            // Try .otf first, then .ttf
+            if let url = Bundle.module.url(forResource: name, withExtension: "otf", subdirectory: "Fonts")
+                ?? Bundle.module.url(forResource: name, withExtension: "ttf", subdirectory: "Fonts") {
+                var error: Unmanaged<CFError>?
+                if !CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
+                    if let err = error?.takeRetainedValue() {
+                        print("[FontRegistrar] Failed to register \(name): \(err)")
+                    }
+                }
+            } else {
+                print("[FontRegistrar] Font file not found: \(name)")
+            }
+        }
+    }
+}
+
+// MARK: - Haptic Feedback
+
+public enum Haptics {
+    public static func perform(_ pattern: NSHapticFeedbackManager.FeedbackPattern = .generic) {
+        NSHapticFeedbackManager.defaultPerformer.perform(pattern, performanceTime: .now)
+    }
+
+    public static func alignment() {
+        perform(.alignment)
+    }
+
+    public static func levelChange() {
+        perform(.levelChange)
     }
 }
 

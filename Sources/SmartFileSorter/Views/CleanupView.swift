@@ -33,14 +33,13 @@ public struct CleanupView: View {
         VStack(spacing: 0) {
             // Верхня панель налаштувань сканування
             HStack {
-                Picker("", selection: $selectedTab) {
-                    Text("Великі файли").tag("large_files")
-                    Text("Старі завантаження").tag("old_downloads")
-                    Text("Порожні папки").tag("empty_folders")
-                    Text("Смітник").tag("trash_config")
-                }
-                .pickerStyle(.segmented)
-                .frame(minWidth: 320, idealWidth: 420, maxWidth: 450)
+                SlidingSegment(selection: $selectedTab, options: [
+                    (value: "large_files", label: "Великі файли", icon: Image(systemName: "doc.richtext")),
+                    (value: "old_downloads", label: "Старі завантаження", icon: Image(systemName: "clock.arrow.circlepath")),
+                    (value: "empty_folders", label: "Порожні папки", icon: Image(systemName: "folder")),
+                    (value: "trash_config", label: "Смітник", icon: Image(systemName: "trash"))
+                ])
+                .frame(minWidth: 380, idealWidth: 500, maxWidth: 560)
                 
                 Spacer()
                 

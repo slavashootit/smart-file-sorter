@@ -108,14 +108,13 @@ struct AnalyticsHeatmapView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Text("Ріст папки (за останні 30 днів)")
-                            .font(.headline)
+                            .font(DT.Font.bodyWeight(14, weight: .semibold))
                         Spacer()
-                        Picker("", selection: $selectedFolder) {
-                            Text("Downloads").tag("Downloads")
-                            Text("Desktop").tag("Desktop")
-                        }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .frame(width: 160)
+                        SlidingSegment(selection: $selectedFolder, options: [
+                            (value: "Downloads", label: "Downloads", icon: Image(systemName: "arrow.down.circle")),
+                            (value: "Desktop", label: "Desktop", icon: Image(systemName: "desktopcomputer"))
+                        ])
+                        .frame(width: 260)
                     }
                     
                     // Render simple Line chart path

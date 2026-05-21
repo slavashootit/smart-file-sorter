@@ -9,6 +9,7 @@ struct SmartFileSorterApp: App {
     private let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     
     init() {
+        FontRegistrar.registerAll()
         _ = ProfileManager.shared
         _ = ScheduleManager.shared
         
@@ -23,6 +24,7 @@ struct SmartFileSorterApp: App {
             ZStack {
                 DT.Color.appBg.ignoresSafeArea()
                 MeshBackground()
+                FilmGrain()
                 
                 MainView()
             }

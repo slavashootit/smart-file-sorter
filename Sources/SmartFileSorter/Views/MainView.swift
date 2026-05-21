@@ -174,6 +174,9 @@ struct MainView: View {
                     VisualEffectView(material: .sidebar, blendingMode: .withinWindow)
                         .liquidGlass(radius: 0)
                 )
+                .safeAreaInset(edge: .bottom) {
+                    DiskMeter()
+                }
                 .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
             } detail: {
                 ZStack {
@@ -274,10 +277,9 @@ struct MainView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Автоматичне впорядкування")
-                            .font(.title2)
-                            .fontWeight(.bold)
+                            .font(DT.Font.bodyWeight(20, weight: .bold))
                         Text("Оберіть папку та параметри для початку")
-                            .font(.subheadline)
+                            .font(DT.Font.body(13))
                             .foregroundColor(DT.Color.textSecondary)
                     }
                     Spacer()
@@ -315,16 +317,21 @@ struct MainView: View {
                 // Вибір папки
                 VStack(alignment: .leading, spacing: 8) {
                     Text("selectFolder")
-                        .font(.headline)
+                        .font(DT.Font.bodyWeight(14, weight: .semibold))
                         .foregroundColor(.secondary)
                     
                     HStack {
                         TextField("Шлях до папки...", text: $folderPath)
                             .textFieldStyle(.roundedBorder)
+                            .font(DT.Font.body(13))
                         
                         Button(action: selectFolder) {
-                            Label("Огляд...", systemImage: "folder.circle")
+                            HStack(spacing: 6) {
+                                Label("Огляд...", systemImage: "folder.circle")
+                                ShortcutHint("⌘O")
+                            }
                         }
+                        .keyboardShortcut("o", modifiers: .command)
                     }
                 }
                 .disabled(isSorting)
@@ -336,7 +343,7 @@ struct MainView: View {
                     // Режим сортування
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Режим сортування")
-                            .font(.headline)
+                            .font(DT.Font.bodyWeight(14, weight: .semibold))
                         
                         Picker("", selection: $sortMode) {
                             Text("За типом").tag(SortMode.type)
@@ -347,18 +354,24 @@ struct MainView: View {
                         Toggle("Виявляти дублікати", isOn: $detectDuplicates)
                             .toggleStyle(.checkbox)
                             .padding(.top, 5)
+                            .onChange(of: detectDuplicates) { _ in
+                                Haptics.alignment()
+                            }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     
                     // Вибір категорій
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Категорії для сортування")
-                            .font(.headline)
+                            .font(DT.Font.bodyWeight(14, weight: .semibold))
                         
                         ForEach(Array(enabledCategories.keys.sorted()), id: \.self) { cat in
                             Toggle(cat, isOn: Binding(
                                 get: { self.enabledCategories[cat] ?? true },
-                                set: { self.enabledCategories[cat] = $0 }
+                                set: {
+                                    self.enabledCategories[cat] = $0
+                                    Haptics.levelChange()
+                                }
                             ))
                             .toggleStyle(.checkbox)
                         }
@@ -374,15 +387,15 @@ struct MainView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text("Впорядкування файлів...")
-                                .font(.headline)
+                                .font(DT.Font.bodyWeight(14, weight: .semibold))
                             Spacer()
                             Text("\(processedCount) з \(totalCount)")
-                                .font(.subheadline)
+                                .font(DT.Font.mono(13))
                                 .foregroundColor(.secondary)
                         }
                         if !currentItem.isEmpty {
                             Text(currentItem)
-                                .font(.caption)
+                                .font(DT.Font.mono(11))
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)
                         }
@@ -403,29 +416,38 @@ struct MainView: View {
                 } else {
                     HStack(spacing: 15) {
                         Button(action: { runSorting(dryRun: true) }) {
-                            Label("previewSorting", systemImage: "eye")
-                                .frame(maxWidth: .infinity)
+                            HStack(spacing: 8) {
+                                Label("previewSorting", systemImage: "eye")
+                                ShortcutHint("⌘P")
+                            }
+                            .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.large)
+                        .keyboardShortcut("p", modifiers: .command)
                         
-                        Button(action: { runSorting(dryRun: false) }) {
-                            Label("startSorting", systemImage: "play.fill")
-                                .frame(maxWidth: .infinity)
+                        MagneticButton(action: { runSorting(dryRun: false) }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.fill")
+                                Text("startSorting")
+                                ShortcutHint("⌘⏎")
+                            }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(DT.Color.accent)
-                        .controlSize(.large)
+                        .keyboardShortcut(.return, modifiers: .command)
                     }
                     
                     if hasHistory {
                         Button(action: undoSorting) {
-                            Label("undoSorting", systemImage: "arrow.uturn.backward")
-                                .foregroundColor(.orange)
-                                .frame(maxWidth: .infinity)
+                            HStack(spacing: 8) {
+                                Label("undoSorting", systemImage: "arrow.uturn.backward")
+                                    .foregroundColor(.orange)
+                                ShortcutHint("⌘Z")
+                            }
+                            .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.large)
+                        .keyboardShortcut("z", modifiers: .command)
                     }
                 }
                 
@@ -433,14 +455,14 @@ struct MainView: View {
                 if !logs.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Журнал операцій")
-                            .font(.headline)
+                            .font(DT.Font.bodyWeight(14, weight: .semibold))
                             .foregroundColor(.secondary)
                         
                         ScrollView {
                             VStack(alignment: .leading, spacing: 4) {
                                 ForEach(logs, id: \.self) { log in
                                     Text(log)
-                                        .font(.system(.body, design: .monospaced))
+                                        .font(DT.Font.mono(12))
                                         .foregroundColor(getLogColor(log))
                                         .multilineTextAlignment(.leading)
                                         .frame(maxWidth: .infinity, alignment: .leading)
