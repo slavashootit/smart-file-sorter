@@ -16,7 +16,7 @@ import Foundation
         
         guard !urls.isEmpty else { return }
         
-        DispatchQueue.global(qos: .userInitiated).async {
+        Task {
             let categories: [String: Bool] = [
                 "Зображення": true,
                 "Відео": true,
@@ -30,13 +30,14 @@ import Foundation
                 var isDir: ObjCBool = false
                 if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) {
                     if isDir.boolValue {
-                        _ = SorterEngine.shared.sortFiles(
+                        let stream = SorterEngine.shared.sortFiles(
                             folderPath: url.path,
                             sortMode: .type,
                             categories: categories,
                             dryRun: false,
                             detectDuplicates: true
                         )
+                        for await _ in stream {}
                     } else {
                         RuleEngine.shared.loadRules()
                         for rule in RuleEngine.shared.rules {

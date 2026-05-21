@@ -35,7 +35,7 @@ public struct SortFolderIntent: AppIntent {
             "Інші файли": true
         ]
         
-        let logs = SorterEngine.shared.sortFiles(
+        let logsStream = SorterEngine.shared.sortFiles(
             folderPath: folder.path,
             sortMode: mode,
             categories: categories,
@@ -43,7 +43,19 @@ public struct SortFolderIntent: AppIntent {
             detectDuplicates: true
         )
         
-        let resultSummary = logs.joined(separator: "\n")
+        var allLogs: [String] = []
+        for await progress in logsStream {
+            if let entry = progress.logEntry {
+                allLogs.append(entry)
+            }
+            if progress.isFinished {
+                if let finals = progress.finalLogs {
+                    allLogs.append(contentsOf: finals)
+                }
+            }
+        }
+        
+        let resultSummary = allLogs.joined(separator: "\n")
         return .result(value: resultSummary)
     }
 }
@@ -89,7 +101,7 @@ public struct ApplyRuleIntent: AppIntent {
         var successCount = 0
         var allLogs: [String] = []
         
-        for case let fileURL as URL in enumerator {
+        while let fileURL = enumerator.nextObject() as? URL {
             if RuleEngine.shared.match(rule: rule, for: fileURL) {
                 matchCount += 1
                 let res = RuleEngine.shared.execute(rule: rule, for: fileURL)

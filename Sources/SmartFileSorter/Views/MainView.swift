@@ -13,6 +13,11 @@ struct MainView: View {
     @AppStorage("onboardingCompleted") private var onboardingCompleted = false
     @State private var showingSmartSelectionAlert = false
     @State private var suggestedPattern: DuplicateSelectionPattern = .none
+    @State private var isSorting = false
+    @State private var sortingTask: Task<Void, Never>? = nil
+    @State private var processedCount = 0
+    @State private var totalCount = 0
+    @State private var currentItem = ""
     
     @State private var enabledCategories: [String: Bool] = [
         "Зображення": true,
@@ -221,6 +226,7 @@ struct MainView: View {
                         }
                     }
                 }
+                .disabled(isSorting)
                 .padding()
                 .background(Color.primary.opacity(0.03))
                 .cornerRadius(12)
@@ -259,36 +265,69 @@ struct MainView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .disabled(isSorting)
                 .padding()
                 .background(Color.primary.opacity(0.03))
                 .cornerRadius(12)
                 
-                // Кнопки дій
-                HStack(spacing: 15) {
-                    Button(action: { runSorting(dryRun: true) }) {
-                        Label("previewSorting", systemImage: "eye")
-                            .frame(maxWidth: .infinity)
+                // Кнопки дій або Прогрес сортування
+                if isSorting {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Впорядкування файлів...")
+                                .font(.headline)
+                            Spacer()
+                            Text("\(processedCount) з \(totalCount)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        if !currentItem.isEmpty {
+                            Text(currentItem)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        ProgressView(value: Double(processedCount), total: Double(max(1, totalCount)))
+                            .progressViewStyle(.linear)
+                        
+                        Button(action: { sortingTask?.cancel() }) {
+                            Label("Скасувати сортування", systemImage: "xmark.circle")
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .padding()
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(12)
+                } else {
+                    HStack(spacing: 15) {
+                        Button(action: { runSorting(dryRun: true) }) {
+                            Label("previewSorting", systemImage: "eye")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                        
+                        Button(action: { runSorting(dryRun: false) }) {
+                            Label("startSorting", systemImage: "play.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.blue)
+                        .controlSize(.large)
+                    }
                     
-                    Button(action: { runSorting(dryRun: false) }) {
-                        Label("startSorting", systemImage: "play.fill")
-                            .frame(maxWidth: .infinity)
+                    if hasHistory {
+                        Button(action: undoSorting) {
+                            Label("undoSorting", systemImage: "arrow.uturn.backward")
+                                .foregroundColor(.orange)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.blue)
-                    .controlSize(.large)
-                }
-                
-                if hasHistory {
-                    Button(action: undoSorting) {
-                        Label("undoSorting", systemImage: "arrow.uturn.backward")
-                            .foregroundColor(.orange)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
                 }
                 
                 // Панель логів (неонова консоль)
@@ -399,14 +438,42 @@ struct MainView: View {
     
     // Запуск сортування
     private func runSorting(dryRun: Bool) {
-        logs = SorterEngine.shared.sortFiles(
-            folderPath: folderPath,
-            sortMode: sortMode,
-            categories: enabledCategories,
-            dryRun: dryRun,
-            detectDuplicates: detectDuplicates
-        )
-        hasHistory = SorterEngine.shared.checkHistoryExists()
+        guard !folderPath.isEmpty else { return }
+        
+        isSorting = true
+        processedCount = 0
+        totalCount = 0
+        currentItem = ""
+        logs.removeAll()
+        
+        sortingTask = Task { @MainActor in
+            let stream = SorterEngine.shared.sortFiles(
+                folderPath: folderPath,
+                sortMode: sortMode,
+                categories: enabledCategories,
+                dryRun: dryRun,
+                detectDuplicates: detectDuplicates
+            )
+            
+            for await progress in stream {
+                if Task.isCancelled { break }
+                self.processedCount = progress.processedCount
+                self.totalCount = progress.totalCount
+                self.currentItem = progress.currentItem
+                if let entry = progress.logEntry {
+                    self.logs.append(entry)
+                }
+                if progress.isFinished {
+                    if let finals = progress.finalLogs {
+                        self.logs.append(contentsOf: finals)
+                    }
+                }
+            }
+            
+            isSorting = false
+            hasHistory = SorterEngine.shared.checkHistoryExists()
+            sortingTask = nil
+        }
     }
     
     // Скасування сортування
