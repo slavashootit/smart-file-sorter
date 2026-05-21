@@ -138,6 +138,11 @@ final class SorterEngineTests: XCTestCase {
             dryRun: false,
             detectDuplicates: true
         )
+        print("--- testSorterEngineRealSorting LOGS ---")
+        for log in logsReal {
+            print(log)
+        }
+        print("-----------------------------------------")
         XCTAssertFalse(logsReal.isEmpty)
         
         XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("Відео/video1.mp4").path))
@@ -177,6 +182,11 @@ final class SorterEngineTests: XCTestCase {
         XCTAssertTrue(engine.checkHistoryExists())
         
         let undoLogs = engine.undoSorting()
+        print("--- testSorterEngineUndo LOGS ---")
+        for log in undoLogs {
+            print(log)
+        }
+        print("---------------------------------")
         XCTAssertFalse(undoLogs.isEmpty)
         
         XCTAssertTrue(fileManager.fileExists(atPath: sandboxURL.appendingPathComponent("video1.mp4").path))

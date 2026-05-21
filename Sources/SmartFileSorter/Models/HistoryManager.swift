@@ -511,6 +511,9 @@ public class HistoryManager: ObservableObject {
     public func checkHistoryExists() -> Bool {
         dbLock.lock()
         defer { dbLock.unlock() }
+        if let db = db, let count = try? db.fetchBatches().count {
+            return count > 0
+        }
         return !batches.isEmpty
     }
     
@@ -535,7 +538,8 @@ public class HistoryManager: ObservableObject {
     public func undoLastBatch() -> [String] {
         dbLock.lock()
         
-        guard let lastBatch = batches.last else {
+        let currentBatches = (try? db?.fetchBatches()) ?? batches
+        guard let lastBatch = currentBatches.last else {
             dbLock.unlock()
             return ["Немає збереженої історії попереднього сортування."]
         }
