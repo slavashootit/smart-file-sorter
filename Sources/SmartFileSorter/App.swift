@@ -10,7 +10,6 @@ struct SmartFileSorterApp: App {
     
     init() {
         FontRegistrar.registerAll()
-        _ = ProfileManager.shared
         _ = ScheduleManager.shared
         
         DispatchQueue.main.async {

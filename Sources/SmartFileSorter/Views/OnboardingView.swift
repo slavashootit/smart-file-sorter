@@ -124,7 +124,7 @@ struct OnboardingView: View {
                 
                 Button(step == 3 ? "Розпочати роботу" : "Продовжити") {
                     if step == 3 {
-                        createInitialProfile()
+                        createInitialRule()
                         isCompleted = true
                     } else {
                         withAnimation { step += 1 }
@@ -152,7 +152,7 @@ struct OnboardingView: View {
         }
     }
     
-    private func createInitialProfile() {
+    private func createInitialRule() {
         var conditions: [RuleCondition] = []
         var action = RuleAction(type: .moveTo, value: NSHomeDirectory() + "/Documents")
         

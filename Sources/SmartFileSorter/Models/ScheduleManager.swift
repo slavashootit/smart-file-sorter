@@ -53,7 +53,7 @@ public class ScheduleManager {
     public func runScheduledSorting(completion: @escaping () -> Void) {
         DispatchQueue.global(qos: .utility).async {
             let fileManager = FileManager.default
-            let activeProfile = UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
+            let activeProfile = "Home"
             let watchedPaths = UserDefaults.standard.stringArray(forKey: "watcher_paths_\(activeProfile)") ?? []
             
             // Завантажуємо актуальні правила

@@ -2,7 +2,6 @@ import SwiftUI
 
 public struct MenuBarView: View {
     @ObservedObject var viewModel: WatcherViewModel
-    @ObservedObject var profileManager = ProfileManager.shared
     
     public init(viewModel: WatcherViewModel) {
         self.viewModel = viewModel
@@ -32,26 +31,6 @@ public struct MenuBarView: View {
                 .buttonStyle(.plain)
             }
             .padding(.bottom, 5)
-            
-            Divider()
-            
-            // Вибір профілю
-            HStack {
-                Text("Профіль:")
-                    .font(.subheadline)
-                    .foregroundColor(DT.Color.textSecondary)
-                Spacer()
-                Picker("", selection: Binding(
-                    get: { self.profileManager.activeProfile },
-                    set: { self.profileManager.switchProfile(to: $0) }
-                )) {
-                    ForEach(self.profileManager.profiles) { profile in
-                        Text(profile.name).tag(profile)
-                    }
-                }
-                .pickerStyle(.menu)
-                .labelsHidden()
-            }
             
             Divider()
             

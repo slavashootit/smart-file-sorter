@@ -82,7 +82,7 @@ public class FSEventsWatcher {
         watchedPaths.insert(path)
         print("[WATCHER] Додано папку: \(path)")
         
-        let activeProfile = UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
+        let activeProfile = "Home"
         UserDefaults.standard.set(Array(watchedPaths), forKey: "watcher_paths_\(activeProfile)")
         
         restartStream()
@@ -98,7 +98,7 @@ public class FSEventsWatcher {
             watchedPaths.remove(path)
             print("[WATCHER] Видалено папку з відстеження: \(path)")
             
-            let activeProfile = UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
+            let activeProfile = "Home"
             UserDefaults.standard.set(Array(watchedPaths), forKey: "watcher_paths_\(activeProfile)")
             
             restartStream()
@@ -107,7 +107,7 @@ public class FSEventsWatcher {
     
     /// Відновити відстеження всіх папок, збережених у UserDefaults
     public func restoreAllWatchedFolders() {
-        let activeProfile = UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
+        let activeProfile = "Home"
         let savedPaths = UserDefaults.standard.stringArray(forKey: "watcher_paths_\(activeProfile)") ?? []
         
         let urls = SecurityBookmarks.shared.restoreAllBookmarks()
@@ -115,7 +115,7 @@ public class FSEventsWatcher {
             if savedPaths.contains(url.path) && watchedPaths.count < maxWatchFolders {
                 SecurityBookmarks.shared.startAccessing(url)
                 watchedPaths.insert(url.path)
-                print("[WATCHER] Відновлено папку для профілю \(activeProfile): \(url.path)")
+                print("[WATCHER] Відновлено папку: \(url.path)")
             }
         }
         

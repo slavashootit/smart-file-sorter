@@ -5,7 +5,6 @@ import Combine
 struct MainView: View {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @ObservedObject var duplicateFinder = DuplicateFinder.shared
-    @ObservedObject var profileManager = ProfileManager.shared
     
     @State private var selectedTab: String = "sort"
     @State private var folderPath: String = ""
@@ -50,19 +49,6 @@ struct MainView: View {
         ZStack {
             NavigationSplitView {
                 List(selection: $selectedTab) {
-                    Section(header: Text("Активний профіль").padding(.leading, 6)) {
-                        Picker("", selection: Binding(
-                            get: { self.profileManager.activeProfile },
-                            set: { self.profileManager.switchProfile(to: $0) }
-                        )) {
-                            ForEach(self.profileManager.profiles) { profile in
-                                Text(profile.name).tag(profile)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                    }
-                    
                     Section(header: Text("Навігація").padding(.leading, 6)) {
                         NavigationLink(value: "sort") {
                             HStack {
@@ -106,16 +92,7 @@ struct MainView: View {
                         }
                         .help("Знаходить візуально схожі фотографії за допомогою Apple Vision AI")
                         
-                        NavigationLink(value: "semantic") {
-                            HStack {
-                                Label("Семантичний пошук", systemImage: "sparkles")
-                                Spacer()
-                                NavBadge("AI")
-                            }
-                            .contentShape(Rectangle())
-                            .spotlightHover()
-                        }
-                        .help("Пошук фотографій за текстовим описом (англ.) — Vision AI розпізнає об'єкти")
+
                         
                         NavigationLink(value: "cleanup") {
                             HStack {
@@ -191,8 +168,7 @@ struct MainView: View {
                         DuplicateReviewView()
                     case "similar":
                         SimilarPhotosView()
-                    case "semantic":
-                        SemanticSearchView()
+
                     case "cleanup":
                         CleanupView()
                     case "templates":

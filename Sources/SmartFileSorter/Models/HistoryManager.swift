@@ -144,6 +144,9 @@ private final class SQLiteHistoryDatabase {
         
         try? execute(sql: "CREATE INDEX IF NOT EXISTS idx_operations_batch ON operations(batch_id);")
         try? execute(sql: "CREATE INDEX IF NOT EXISTS idx_created_dirs_batch ON created_dirs(batch_id);")
+        
+        // v1.5.1 migration: drop legacy semantic search embeddings table if it exists
+        try? execute(sql: "DROP TABLE IF EXISTS embeddings;")
     }
     
     func insertBatch(_ batch: BatchRecord) throws {
@@ -453,7 +456,7 @@ public class HistoryManager: ObservableObject {
                     }
                     
                     if !alreadyImported && !sessionOps.isEmpty {
-                        let activeProfile = UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
+                        let activeProfile = "Home"
                         let batch = BatchRecord(
                             id: UUID(),
                             timestamp: Date(),

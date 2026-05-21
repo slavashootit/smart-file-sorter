@@ -4,6 +4,21 @@ All notable changes to the **Smart File Sorter** project will be documented in t
 
 ---
 
+## [1.5.1] - 2026-05-21
+
+### Removed
+- **Profile system** (Photography / Work / Home presets) — profile picker removed from sidebar and menu bar, `ProfileManager` deleted entirely.
+- **Semantic Search feature** — `SemanticSearchView`, `SemanticSearchEngine`, and embeddings SQLite table removed. Navigation link and route case deleted from `MainView`.
+- `NLContextualEmbedding` — not used anywhere in the codebase (0 callsites found).
+
+### Notes
+- Legacy `profiles.json` files on disk are silently ignored — no crash on existing installs.
+- Watcher paths continue working under the default `"Home"` key (`watcher_paths_Home`).
+- `BatchRecord.profileName` field is kept in HistoryManager for data compatibility with existing history.
+- `DROP TABLE IF EXISTS embeddings` added to HistoryManager migration step.
+
+---
+
 ## [1.5.0] - 2026-05-21
 
 This release delivers the **v1.5 "Visual Identity"** milestone, implementing a premium, modern design system throughout the entire application with unified design tokens, dynamic animations, and accessibility-first motion controls.

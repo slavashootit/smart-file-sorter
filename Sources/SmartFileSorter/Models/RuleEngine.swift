@@ -123,17 +123,12 @@ public class RuleEngine {
         return appSupport.appendingPathComponent("SmartSorter")
     }
     
-    public var currentProfile: String {
-        return UserDefaults.standard.string(forKey: "active_profile") ?? "Home"
-    }
-    
     public var rulesFileURL: URL {
-        let profileName = currentProfile
         let fileManager = FileManager.default
-        let newURL = rulesDirectoryURL.appendingPathComponent("rules_\(profileName).json")
+        let newURL = rulesDirectoryURL.appendingPathComponent("rules_Home.json")
         
         // Міграція старого rules.json (якщо є) до rules_Home.json
-        if profileName == "Home" && !fileManager.fileExists(atPath: newURL.path) {
+        if !fileManager.fileExists(atPath: newURL.path) {
             let oldURL = rulesDirectoryURL.appendingPathComponent("rules.json")
             if fileManager.fileExists(atPath: oldURL.path) {
                 try? fileManager.moveItem(at: oldURL, to: newURL)
