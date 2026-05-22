@@ -48,13 +48,13 @@ struct SmartScanDashboardView: View {
                 ZStack(alignment: .bottom) {
                     Color.black.opacity(0.5)
                         .ignoresSafeArea()
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                viewState = .results
+                        .simultaneousGesture(
+                            TapGesture().onEnded {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    viewState = .results
+                                }
                             }
-                        }
-                        .allowsHitTesting(true)
+                        )
 
                     FixAllSheetView(
                         issues: Binding(
@@ -80,7 +80,6 @@ struct SmartScanDashboardView: View {
                     .transition(.move(edge: .bottom))
                     .padding(.horizontal, 0)
                     .zIndex(1)
-                    .onTapGesture {} // порожній gesture поглинач
                 }
                 .ignoresSafeArea()
             }
