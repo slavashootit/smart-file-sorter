@@ -225,12 +225,14 @@ public struct CleanupView: View {
                             }
                             .padding(.horizontal)
                             
-                            // Створення правила автоматичного архівування
-                            Button("Авто-Архів") {
-                                createAutoArchiveRule(for: item.url)
+                            // Створення правила автоматичного архівування (якщо це ще не архів)
+                            if !isArchiveFile(item.url) {
+                                Button("Авто-Архів") {
+                                    createAutoArchiveRule(for: item.url)
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
                             
                             Button(action: {
                                 QuickLookHelper.shared.showPreview(urls: [item.url])
@@ -629,6 +631,11 @@ public struct CleanupView: View {
         df.dateStyle = .short
         df.timeStyle = .short
         return df.string(from: date)
+    }
+    
+    private func isArchiveFile(_ url: URL) -> Bool {
+        let archiveExtensions: Set<String> = ["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "tgz", "tbz2", "dmg", "iso"]
+        return archiveExtensions.contains(url.pathExtension.lowercased())
     }
     
 }
