@@ -45,43 +45,39 @@ struct SmartScanDashboardView: View {
 
             // Fix All sheet overlay
             if viewState == .confirmingFixAll, coordinator.results != nil {
-                ZStack(alignment: .bottom) {
-                    Color.black.opacity(0.5)
-                        .ignoresSafeArea()
-                        .simultaneousGesture(
-                            TapGesture().onEnded {
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    viewState = .results
-                                }
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                viewState = .results
                             }
-                        )
-
-                    FixAllSheetView(
-                        issues: Binding(
-                            get: { coordinator.results?.issues ?? [] },
-                            set: { newIssues in
-                                if let r = coordinator.results {
-                                    // rebuild results with updated isSelected
-                                    coordinator.results = ScanResults(
-                                        issues: newIssues,
-                                        scannedPath: r.scannedPath,
-                                        scannedAt: r.scannedAt
-                                    )
-                                }
-                            }
-                        ),
-                        onCancel: {
-                            withAnimation(.easeInOut(duration: 0.25)) { viewState = .results }
-                        },
-                        onConfirm: { selected in
-                            Task { await performFixAll(issues: selected) }
                         }
                     )
-                    .transition(.move(edge: .bottom))
-                    .padding(.horizontal, 0)
-                    .zIndex(1)
-                }
-                .ignoresSafeArea()
+
+                FixAllSheetView(
+                    issues: Binding(
+                        get: { coordinator.results?.issues ?? [] },
+                        set: { newIssues in
+                            if let r = coordinator.results {
+                                // rebuild results with updated isSelected
+                                coordinator.results = ScanResults(
+                                    issues: newIssues,
+                                    scannedPath: r.scannedPath,
+                                    scannedAt: r.scannedAt
+                                )
+                            }
+                        }
+                    ),
+                    onCancel: {
+                        withAnimation(.easeInOut(duration: 0.25)) { viewState = .results }
+                    },
+                    onConfirm: { selected in
+                        Task { await performFixAll(issues: selected) }
+                    }
+                )
+                .transition(.move(edge: .bottom))
+                .zIndex(1)
             }
 
             // Toast
