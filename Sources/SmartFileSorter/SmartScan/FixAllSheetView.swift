@@ -107,33 +107,33 @@ struct SheetItemRow: View {
     @Binding var issue: ScanIssue
 
     var body: some View {
-        Button { issue.isSelected.toggle() } label: {
-            HStack(spacing: 12) {
-                Checkbox(isChecked: issue.isSelected)
+        HStack(spacing: 12) {
+            Checkbox(isChecked: issue.isSelected)
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(issue.displayName)
-                        .font(DT.bodyFont)
-                        .foregroundStyle(DT.label)
-                        .lineLimit(1)
-                    Text(issue.detail)
-                        .font(DT.captionFont)
-                        .foregroundStyle(DT.label2)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                Text(ByteCountFormatter.string(fromByteCount: issue.bytes, countStyle: .file))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(issue.displayName)
+                    .font(DT.bodyFont)
+                    .foregroundStyle(DT.label)
+                    .lineLimit(1)
+                Text(issue.detail)
                     .font(DT.captionFont)
                     .foregroundStyle(DT.label2)
-                    .monospacedDigit()
+                    .lineLimit(1)
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+
+            Spacer()
+
+            Text(ByteCountFormatter.string(fromByteCount: issue.bytes, countStyle: .file))
+                .font(DT.captionFont)
+                .foregroundStyle(DT.label2)
+                .monospacedDigit()
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            issue.isSelected.toggle()
+        }
     }
 }
 
