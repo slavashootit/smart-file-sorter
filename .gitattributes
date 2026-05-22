@@ -1,0 +1,3 @@
+python/     linguist-vendored
+web_ui/     linguist-vendored
+*.html      linguist-vendored
