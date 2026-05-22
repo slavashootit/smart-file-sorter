@@ -85,17 +85,21 @@ final class SmartScanCoordinator: ObservableObject {
             return acc + Int64(size)
         }
 
-        let issues: [ScanIssue] = found.isEmpty ? [] : [
-            ScanIssue(
+        var issues: [ScanIssue] = []
+        for fileURL in found {
+            let size = Int64((try? fileURL.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+            let reason = ScanIssue.determineReason(category: .cleanup, url: fileURL)
+            issues.append(ScanIssue(
                 id: UUID(),
                 category: .cleanup,
-                displayName: "Тимчасові файли (\(found.count))",
-                detail: "Знайдено в \(url.lastPathComponent)",
-                urls: found,
-                bytes: totalBytes,
-                isSelected: true
-            )
-        ]
+                displayName: fileURL.lastPathComponent,
+                detail: fileURL.path,
+                urls: [fileURL],
+                bytes: size,
+                isSelected: true,
+                reason: reason
+            ))
+        }
 
         let summary = found.isEmpty ? "Чисто" : "\(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file))"
         await MainActor.run { self.progress.cleanup = .done(summary: summary) }
@@ -115,24 +119,25 @@ final class SmartScanCoordinator: ObservableObject {
             guard group.files.count > 1 else { continue }
             let keeper = group.files.first!
             let toDelete = Array(group.files.dropFirst())
-            let bytes = toDelete.reduce(Int64(0)) { acc, u in
-                let size = (try? u.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
-                return acc + Int64(size)
+            for dupFile in toDelete {
+                let size = Int64((try? dupFile.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+                let reason = ScanIssue.determineReason(category: .duplicate, url: dupFile, originalFile: keeper)
+                issues.append(ScanIssue(
+                    id: UUID(),
+                    category: .duplicate,
+                    displayName: dupFile.lastPathComponent,
+                    detail: "Дублікат файлу \(keeper.lastPathComponent)",
+                    urls: [dupFile],
+                    bytes: size,
+                    isSelected: true,
+                    reason: reason
+                ))
             }
-            issues.append(ScanIssue(
-                id: UUID(),
-                category: .duplicate,
-                displayName: "\(keeper.lastPathComponent) · ×\(group.files.count)",
-                detail: "Залишаємо: \(keeper.lastPathComponent)",
-                urls: toDelete,
-                bytes: bytes,
-                isSelected: true
-            ))
         }
 
         let totalBytes = issues.reduce(Int64(0)) { $0 + $1.bytes }
         let summary = issues.isEmpty ? "Дублікатів немає" :
-            "\(issues.count) груп · \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file))"
+            "\(issues.count) файлів · \(ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file))"
         await MainActor.run { self.progress.duplicates = .done(summary: summary) }
         return issues
     }
@@ -149,22 +154,23 @@ final class SmartScanCoordinator: ObservableObject {
         for cluster in clusters {
             guard cluster.photos.count > 1 else { continue }
             let toDelete = Array(cluster.photos.dropFirst())
-            let bytes = toDelete.reduce(Int64(0)) { acc, u in
-                let size = (try? u.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
-                return acc + Int64(size)
+            for photoURL in toDelete {
+                let size = Int64((try? photoURL.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
+                let reason = ScanIssue.determineReason(category: .similarPhoto, url: photoURL, clusterSize: cluster.photos.count)
+                issues.append(ScanIssue(
+                    id: UUID(),
+                    category: .similarPhoto,
+                    displayName: photoURL.lastPathComponent,
+                    detail: reason,
+                    urls: [photoURL],
+                    bytes: size,
+                    isSelected: false, // UNCHECKED за замовчуванням
+                    reason: reason
+                ))
             }
-            issues.append(ScanIssue(
-                id: UUID(),
-                category: .similarPhoto,
-                displayName: "\(cluster.label) — \(cluster.photos.count) схожих",
-                detail: "Vision AI ≥ \(Int(cluster.minSimilarity * 100))% схожості",
-                urls: toDelete,
-                bytes: bytes,
-                isSelected: false  // UNCHECKED за замовчуванням
-            ))
         }
 
-        let summary = issues.isEmpty ? "Схожих немає" : "\(issues.count) кластери"
+        let summary = issues.isEmpty ? "Схожих немає" : "\(issues.count) фото"
         await MainActor.run { self.progress.similarPhotos = .done(summary: summary) }
         return issues
     }

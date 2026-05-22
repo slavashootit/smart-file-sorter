@@ -96,13 +96,17 @@ struct SheetItemRow: View {
             Checkbox(isChecked: issue.isSelected)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(issue.displayName)
-                    .font(DT.bodyFont)
-                    .foregroundStyle(DT.label)
-                    .lineLimit(1)
-                Text(issue.detail)
-                    .font(DT.captionFont)
-                    .foregroundStyle(DT.label2)
+                if let url = issue.urls.first {
+                    Text(url.path)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .font(DT.Font.geistMono(size: 11))
+                        .foregroundStyle(DT.Color.textSecondary)
+                        .help(url.path)
+                }
+                Text(issue.reason)
+                    .font(DT.Font.geist(size: 12))
+                    .foregroundStyle(DT.Color.textTertiary)
                     .lineLimit(1)
             }
 

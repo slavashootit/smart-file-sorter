@@ -58,7 +58,7 @@ final class SmartScanCoordinatorTests: XCTestCase {
         // Verify that issues with category .similarPhoto default to isSelected = false
         let issue = ScanIssue(id: UUID(), category: .similarPhoto,
                               displayName: "test", detail: "",
-                              urls: [], bytes: 0, isSelected: false)
+                              urls: [], bytes: 0, isSelected: false, reason: "")
         XCTAssertFalse(issue.isSelected)
     }
 

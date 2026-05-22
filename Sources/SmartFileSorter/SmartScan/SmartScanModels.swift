@@ -23,6 +23,51 @@ struct ScanIssue: Identifiable, Hashable {
     let urls: [URL]                // всі файли які будуть переміщені
     let bytes: Int64
     var isSelected: Bool           // false за замовчуванням для .similarPhoto
+    let reason: String
+
+    public static func determineReason(category: ScanIssueCategory, url: URL, originalFile: URL? = nil, clusterSize: Int? = nil) -> String {
+        switch category {
+        case .cleanup:
+            let fm = FileManager.default
+            let path = url.path
+            let attr = try? fm.attributesOfItem(atPath: path)
+            
+            if path.contains("/.Trash/") || path.hasSuffix("/.Trash") {
+                let modDate = attr?[.modificationDate] as? Date ?? Date()
+                let days = Calendar.current.dateComponents([.day], from: modDate, to: Date()).day ?? 0
+                return "У Кошику · \(days) дн."
+            } else if path.contains("/Library/Caches/") || path.contains("/Library/Logs/") || url.pathExtension.lowercased() == "log" || url.pathExtension.lowercased() == "tmp" || path.contains("/Caches/") {
+                let size = attr?[.size] as? Int64 ?? 0
+                let sizeStr = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+                return "Кеш · \(sizeStr)"
+            } else if path.contains("/Downloads/") {
+                var accessDate = Date()
+                if let resourceValues = try? url.resourceValues(forKeys: [.contentAccessDateKey]),
+                   let date = resourceValues.contentAccessDate {
+                    accessDate = date
+                } else if let modDate = attr?[.modificationDate] as? Date {
+                    accessDate = modDate
+                }
+                let months = Calendar.current.dateComponents([.month], from: accessDate, to: Date()).month ?? 0
+                return "Downloads · не відкривався \(months) міс."
+            } else {
+                // Default fallback for other cleanup files (like .DS_Store outside standard dirs)
+                let size = attr?[.size] as? Int64 ?? 0
+                let sizeStr = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+                return "Кеш · \(sizeStr)"
+            }
+        case .duplicate:
+            if let originalFile = originalFile {
+                return "Дублікат файлу \(originalFile.lastPathComponent)"
+            }
+            return "Дублікат файлу"
+        case .similarPhoto:
+            if let clusterSize = clusterSize {
+                return "Схоже на \(clusterSize - 1) фото в кластері"
+            }
+            return "Схоже фото"
+        }
+    }
 }
 
 struct ScanResults: Equatable {
