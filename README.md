@@ -14,7 +14,7 @@
   [![Latest](https://img.shields.io/github/v/release/slavashootit/smart-file-sorter)](https://github.com/slavashootit/smart-file-sorter/releases/latest)
   [![License](https://img.shields.io/badge/license-MIT-lightgrey)](#license)
 
-  [⬇ Download v1.6.0 .dmg](https://github.com/slavashootit/smart-file-sorter/releases/download/v1.6.0/SmartFileSorter-1.6.0.dmg) &nbsp;·&nbsp;
+  [⬇ Download v1.6.0](https://github.com/slavashootit/smart-file-sorter/releases/latest) &nbsp;·&nbsp;
   [View Releases](https://github.com/slavashootit/smart-file-sorter/releases) &nbsp;·&nbsp;
   [Changelog](CHANGELOG.md)
 </div>
