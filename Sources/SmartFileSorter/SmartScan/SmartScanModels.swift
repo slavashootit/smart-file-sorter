@@ -70,8 +70,22 @@ struct ScanIssue: Identifiable, Hashable {
     }
 }
 
+struct ScanCluster: Identifiable, Equatable, Hashable {
+    let id: UUID
+    var photos: [ScanIssue]
+    var originalIndex: Int
+
+    init(id: UUID = UUID(), photos: [ScanIssue], originalIndex: Int) {
+        self.id = id
+        self.photos = photos
+        self.originalIndex = originalIndex
+    }
+}
+
 struct ScanResults: Equatable {
-    let issues: [ScanIssue]        // вже відсортовані за category
+    var issues: [ScanIssue]        // вже відсортовані за category
+    var similarPhotos: [ScanIssue] // існуючий список
+    var clusters: [ScanCluster]    // нові кластери
     let scannedPath: URL
     let scannedAt: Date
 
@@ -85,9 +99,29 @@ struct ScanResults: Equatable {
             .sorted { $0.key < $1.key }
             .map { ($0.key, $0.value) }
     }
+
+    init(issues: [ScanIssue], scannedPath: URL, scannedAt: Date) {
+        self.issues = issues
+        self.similarPhotos = issues.filter { $0.category == .similarPhoto }
+        self.clusters = []
+        self.scannedPath = scannedPath
+        self.scannedAt = scannedAt
+    }
+
+    init(issues: [ScanIssue], similarPhotos: [ScanIssue], clusters: [ScanCluster], scannedPath: URL, scannedAt: Date) {
+        self.issues = issues
+        self.similarPhotos = similarPhotos
+        self.clusters = clusters
+        self.scannedPath = scannedPath
+        self.scannedAt = scannedAt
+    }
     
     static func == (lhs: ScanResults, rhs: ScanResults) -> Bool {
-        lhs.scannedAt == rhs.scannedAt && lhs.scannedPath == rhs.scannedPath && lhs.issues == rhs.issues
+        lhs.scannedAt == rhs.scannedAt &&
+        lhs.scannedPath == rhs.scannedPath &&
+        lhs.issues == rhs.issues &&
+        lhs.similarPhotos == rhs.similarPhotos &&
+        lhs.clusters == rhs.clusters
     }
 }
 

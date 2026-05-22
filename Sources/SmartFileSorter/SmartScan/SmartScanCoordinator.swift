@@ -14,6 +14,7 @@ final class SmartScanCoordinator: ObservableObject {
     // TTL: якщо scan був менш ніж 5 хв тому — повертає кеш
     private var lastScanDate: Date?
     private let cacheTTL: TimeInterval = 300
+    private var lastScanClusters: [ScanCluster] = []
 
     public init() {}
 
@@ -27,6 +28,7 @@ final class SmartScanCoordinator: ObservableObject {
         viewState = .scanning
         results = nil
         progress = ScanProgress()
+        lastScanClusters = []
         scanTask?.cancel()
         scanTask = Task { await runScan(at: url) }
     }
@@ -53,7 +55,14 @@ final class SmartScanCoordinator: ObservableObject {
         guard !Task.isCancelled else { return }
 
         let sorted = allIssues.sorted { $0.category < $1.category }
-        self.results = ScanResults(issues: sorted, scannedPath: url, scannedAt: .now)
+        let similarPhotos = sorted.filter { $0.category == .similarPhoto }
+        self.results = ScanResults(
+            issues: sorted,
+            similarPhotos: similarPhotos,
+            clusters: self.lastScanClusters,
+            scannedPath: url,
+            scannedAt: .now
+        )
         self.lastScanDate = .now
         self.progress.overallFraction = 1.0
         self.viewState = .results
@@ -151,25 +160,51 @@ final class SmartScanCoordinator: ObservableObject {
         let clusters = await engine.findClusters(in: url)
 
         var issues: [ScanIssue] = []
+        var scanClusters: [ScanCluster] = []
+
         for cluster in clusters {
             guard cluster.photos.count > 1 else { continue }
-            let toDelete = Array(cluster.photos.dropFirst())
-            for photoURL in toDelete {
+            
+            let photoSizes: [(url: URL, size: Int64)] = cluster.photos.map { photoURL in
                 let size = Int64((try? photoURL.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
-                let reason = ScanIssue.determineReason(category: .similarPhoto, url: photoURL, clusterSize: cluster.photos.count)
-                issues.append(ScanIssue(
+                return (photoURL, size)
+            }
+            
+            var largestIndex = 0
+            var largestSize: Int64 = -1
+            for (idx, item) in photoSizes.enumerated() {
+                if item.size > largestSize {
+                    largestSize = item.size
+                    largestIndex = idx
+                }
+            }
+            
+            var clusterIssues: [ScanIssue] = []
+            for (idx, item) in photoSizes.enumerated() {
+                let isOriginal = (idx == largestIndex)
+                let reason = ScanIssue.determineReason(category: .similarPhoto, url: item.url, clusterSize: cluster.photos.count)
+                let issue = ScanIssue(
                     id: UUID(),
                     category: .similarPhoto,
-                    displayName: photoURL.lastPathComponent,
+                    displayName: item.url.lastPathComponent,
                     detail: reason,
-                    urls: [photoURL],
-                    bytes: size,
-                    isSelected: false, // UNCHECKED за замовчуванням
+                    urls: [item.url],
+                    bytes: item.size,
+                    isSelected: !isOriginal, // Checked if NOT original
                     reason: reason
-                ))
+                )
+                clusterIssues.append(issue)
             }
+            
+            let scanCluster = ScanCluster(
+                photos: clusterIssues,
+                originalIndex: largestIndex
+            )
+            scanClusters.append(scanCluster)
+            issues.append(contentsOf: clusterIssues)
         }
 
+        self.lastScanClusters = scanClusters
         let summary = issues.isEmpty ? "Схожих немає" : "\(issues.count) фото"
         await MainActor.run { self.progress.similarPhotos = .done(summary: summary) }
         return issues
