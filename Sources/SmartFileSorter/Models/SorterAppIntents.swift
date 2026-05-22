@@ -208,8 +208,8 @@ public struct SorterShortcutsProvider: AppShortcutsProvider {
             AppShortcut(
                 intent: SortFolderIntent(),
                 phrases: [
-                    "Sort folder \(\.$folder) in \(.applicationName)",
-                    "Сортувати \(\.$folder) в \(.applicationName)"
+                    "Sort folder in \(.applicationName)",
+                    "Сортувати папку в \(.applicationName)"
                 ],
                 shortTitle: "Sort Folder",
                 systemImageName: "folder.badge.gearshape"
@@ -217,8 +217,8 @@ public struct SorterShortcutsProvider: AppShortcutsProvider {
             AppShortcut(
                 intent: ApplyRuleIntent(),
                 phrases: [
-                    "Apply rule \(\.$ruleName) in \(.applicationName)",
-                    "Застосувати правило \(\.$ruleName) в \(.applicationName)"
+                    "Apply rule in \(.applicationName)",
+                    "Застосувати правило в \(.applicationName)"
                 ],
                 shortTitle: "Apply Rule",
                 systemImageName: "rule"
@@ -226,8 +226,8 @@ public struct SorterShortcutsProvider: AppShortcutsProvider {
             AppShortcut(
                 intent: FindDuplicatesIntent(),
                 phrases: [
-                    "Find duplicates in \(\.$folder) in \(.applicationName)",
-                    "Знайти дублікати в \(\.$folder) в \(.applicationName)"
+                    "Find duplicates in \(.applicationName)",
+                    "Знайти дублікати в \(.applicationName)"
                 ],
                 shortTitle: "Find Duplicates",
                 systemImageName: "doc.on.doc"

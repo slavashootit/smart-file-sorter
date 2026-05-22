@@ -38,4 +38,24 @@ final class SmartScanCoordinatorTests: XCTestCase {
                               urls: [], bytes: 0, isSelected: false)
         XCTAssertFalse(issue.isSelected)
     }
+
+    func test_similarPhotosEngine_testPool() async {
+        let path = NSHomeDirectory() + "/Downloads/ТЕСТИ"
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else {
+            print("[TEST] Skip: test pool folder not found at \(path)")
+            return
+        }
+        
+        let engine = SimilarPhotosEngine()
+        let clusters = await engine.findClusters(in: url)
+        print("--- SIMILAR PHOTOS CLUSTERS COUNT: \(clusters.count) ---")
+        for (i, cluster) in clusters.enumerated() {
+            print("Cluster \(i + 1) (\(cluster.label)): \(cluster.photos.count) photos, min similarity \(cluster.minSimilarity)")
+            for photo in cluster.photos {
+                print("  - \(photo.lastPathComponent)")
+            }
+        }
+        XCTAssertTrue(clusters.count >= 4 && clusters.count <= 15, "Expected clusters count between 4 and 15, got \(clusters.count)")
+    }
 }

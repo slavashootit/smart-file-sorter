@@ -202,14 +202,24 @@ public final class SimilarPhotosEngine: @unchecked Sendable {
     public init() {}
     
     public func findClusters(in url: URL) async -> [SimilarPhotosCluster] {
+        let duplicateFinder = DuplicateFinder()
+        let duplicateGroups = await duplicateFinder.findDuplicates(in: url)
+        let duplicateURLsToDiscard = Set(duplicateGroups.flatMap { $0.files.dropFirst() })
+        
         let finder = SimilarPhotosFinder()
         return await withCheckedContinuation { continuation in
-            finder.scan(at: url.path, threshold: 0.15) {
-                let clusters = finder.similarGroups.enumerated().map { (index, group) in
-                    SimilarPhotosCluster(
-                        label: "Група \(index + 1)",
-                        photos: group.photos,
-                        minSimilarity: 0.85
+            finder.scan(at: url.path, threshold: 0.18) {
+                var clusters: [SimilarPhotosCluster] = []
+                for group in finder.similarGroups {
+                    let filteredPhotos = group.photos.filter { !duplicateURLsToDiscard.contains($0) }
+                    guard filteredPhotos.count >= 3 else { continue }
+                    
+                    clusters.append(
+                        SimilarPhotosCluster(
+                            label: "Група \(clusters.count + 1)",
+                            photos: filteredPhotos,
+                            minSimilarity: 0.82
+                        )
                     )
                 }
                 continuation.resume(returning: clusters)
