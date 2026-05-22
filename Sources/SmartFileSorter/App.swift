@@ -23,7 +23,6 @@ struct SmartFileSorterApp: App {
             ZStack {
                 DT.Color.appBg.ignoresSafeArea()
                 MeshBackground()
-                FilmGrain()
                 
                 MainView()
             }

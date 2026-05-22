@@ -92,6 +92,16 @@ public enum DT {  // Design Tokens — коротко, бо використов
         public static func accent(_ size: CGFloat = 22) -> SwiftUI.Font {
             .custom(serif, size: size).italic()
         }
+        
+        public static func geist(_ size: CGFloat) -> SwiftUI.Font {
+            .custom("Geist-Regular", size: size)
+        }
+        public static func geistMedium(_ size: CGFloat) -> SwiftUI.Font {
+            .custom("Geist-Medium", size: size)
+        }
+        public static func geistMono(_ size: CGFloat) -> SwiftUI.Font {
+            .custom("GeistMono-Regular", size: size)
+        }
     }
 }
 

@@ -60,7 +60,7 @@ public struct SortingView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Автоматичне впорядкування")
-                            .font(DT.Font.bodyWeight(20, weight: .bold))
+                            .font(DT.Font.geistMedium(13))
                         Text("Оберіть папку та параметри для початку")
                             .font(DT.Font.body(13))
                             .foregroundColor(DT.Color.textSecondary)
@@ -78,7 +78,7 @@ public struct SortingView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
                             Text("Виявлено конфлікти у правилах:")
-                                .font(.headline)
+                                .font(DT.Font.geistMedium(13))
                                 .foregroundColor(.orange)
                         }
                         ForEach(conflicts, id: \.self) { conflict in
@@ -170,7 +170,7 @@ public struct SortingView: View {
                 if !logs.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Журнал операцій")
-                            .font(DT.Font.bodyWeight(14, weight: .semibold))
+                            .font(DT.Font.geistMedium(13))
                             .foregroundColor(.secondary)
                         
                         ScrollView {

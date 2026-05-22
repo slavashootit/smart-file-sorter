@@ -40,20 +40,27 @@ public struct LastRunSummaryView: View {
                     // Metric 1: Files
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Файли")
-                            .font(DT.Font.body(11))
+                            .font(DT.Font.geist(11))
                             .foregroundColor(DT.Color.textTertiary)
-                        Text(ukPluralFiles(fileCount))
-                            .font(DT.Font.bodyWeight(13, weight: .semibold))
-                            .foregroundColor(DT.Color.textPrimary)
+                        HStack(spacing: 2) {
+                            AnimatedNumber(
+                                value: fileCount,
+                                font: DT.Font.geistMedium(13),
+                                color: DT.Color.textPrimary
+                            )
+                            Text(ukPluralSuffix(fileCount))
+                                .font(DT.Font.geistMedium(13))
+                                .foregroundColor(DT.Color.textPrimary)
+                        }
                     }
                     
                     // Metric 2: Folder
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Папка")
-                            .font(DT.Font.body(11))
+                            .font(DT.Font.geist(11))
                             .foregroundColor(DT.Color.textTertiary)
                         Text(folderName)
-                            .font(DT.Font.bodyWeight(13, weight: .semibold))
+                            .font(DT.Font.geistMedium(13))
                             .foregroundColor(DT.Color.textPrimary)
                             .lineLimit(1)
                     }
@@ -61,10 +68,10 @@ public struct LastRunSummaryView: View {
                     // Metric 3: Time
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Час")
-                            .font(DT.Font.body(11))
+                            .font(DT.Font.geist(11))
                             .foregroundColor(DT.Color.textTertiary)
                         Text(relativeTimeStr)
-                            .font(DT.Font.bodyWeight(13, weight: .semibold))
+                            .font(DT.Font.geistMedium(13))
                             .foregroundColor(DT.Color.textPrimary)
                     }
                     
@@ -142,6 +149,20 @@ public struct LastRunSummaryView: View {
             return "\(count) файли"
         } else {
             return "\(count) файлів"
+        }
+    }
+    
+    private func ukPluralSuffix(_ count: Int) -> String {
+        let mod10 = count % 10
+        let mod100 = count % 100
+        if mod100 >= 11 && mod100 <= 19 {
+            return " файлів"
+        } else if mod10 == 1 {
+            return " файл"
+        } else if mod10 >= 2 && mod10 <= 4 {
+            return " файли"
+        } else {
+            return " файлів"
         }
     }
     

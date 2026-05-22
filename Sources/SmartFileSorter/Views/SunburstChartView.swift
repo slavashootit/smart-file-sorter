@@ -279,7 +279,7 @@ struct SunburstChartView: View {
     }
     
     private func colorForNode(_ node: DiskNode) -> Color {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .yellow, .green, .cyan, .teal]
+        let colors: [Color] = [DT.Color.accent, DT.Color.accentStrong, .orange, .yellow, DT.Color.success, .cyan, .teal]
         let hashValue = abs(node.name.hashValue)
         return colors[hashValue % colors.count]
     }

@@ -173,7 +173,7 @@ public struct DashboardView: View {
                                     x: .value("Папка", item.folder),
                                     y: .value("Кількість", item.count)
                                 )
-                                .foregroundStyle(Color.purple)
+                                .foregroundStyle(DT.Color.accent)
                                 .cornerRadius(4)
                             }
                             .frame(height: 200)

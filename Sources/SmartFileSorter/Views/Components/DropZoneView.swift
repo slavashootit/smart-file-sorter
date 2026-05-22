@@ -14,15 +14,16 @@ public struct DropZoneView: View {
     private var formattedPath: String {
         guard !folderPath.isEmpty else { return "" }
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
-        var resolvedPath = folderPath
-        if folderPath.hasPrefix(homeDir) {
-            resolvedPath = "~" + folderPath.dropFirst(homeDir.count)
+        var display = folderPath.hasPrefix(homeDir)
+            ? "~" + folderPath.dropFirst(homeDir.count)
+            : folderPath
+        let parts = display.components(separatedBy: "/").filter { !$0.isEmpty }
+        if parts.count > 3 {
+            // Show ~/…/parent/folder
+            let last2 = parts.suffix(2).joined(separator: "/")
+            display = display.hasPrefix("~") ? "~/…/\(last2)" : "…/\(last2)"
         }
-        let components = resolvedPath.components(separatedBy: "/")
-        if components.count > 2 {
-            return components.suffix(2).joined(separator: "/")
-        }
-        return resolvedPath
+        return display
     }
     
     public var body: some View {
@@ -53,7 +54,7 @@ public struct DropZoneView: View {
                             .font(DT.Font.bodyWeight(11, weight: .semibold))
                             .foregroundColor(DT.Color.textSecondary)
                         Text(formattedPath)
-                            .font(DT.Font.mono(13))
+                            .font(DT.Font.geistMono(13))
                             .foregroundColor(DT.Color.textPrimary)
                             .lineLimit(1)
                     }
