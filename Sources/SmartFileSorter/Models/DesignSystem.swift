@@ -302,3 +302,46 @@ extension View {
         modifier(ShimmerModifier())
     }
 }
+
+extension DT {
+    // Fonts
+    public static var titleFont: SwiftUI.Font { Font.bodyWeight(20, weight: .bold) }
+    public static var bodyFont: SwiftUI.Font { Font.body(13) }
+    public static var subheadFont: SwiftUI.Font { Font.bodyWeight(13, weight: .medium) }
+    public static var captionFont: SwiftUI.Font { Font.body(11) }
+
+    // Colors
+    public static var label: SwiftUI.Color { Color.textPrimary }
+    public static var label2: SwiftUI.Color { Color.textSecondary }
+    public static var label3: SwiftUI.Color { Color.textTertiary }
+    public static var separator: SwiftUI.Color { Color.borderDefault }
+    public static var green: SwiftUI.Color { Color.success }
+    public static var bg3: SwiftUI.Color { Color.elevated }
+}
+
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            .background(Color.blue.opacity(configuration.isPressed ? 0.75 : 1.0))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+struct SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(DT.label2)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(DT.bg3.opacity(configuration.isPressed ? 0.7 : 1.0))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
