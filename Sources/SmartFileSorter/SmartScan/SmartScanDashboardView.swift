@@ -1,14 +1,7 @@
 import SwiftUI
 
-enum SmartScanState {
-    case scanning
-    case results
-    case confirmingFixAll
-}
-
 struct SmartScanDashboardView: View {
     @ObservedObject var coordinator: SmartScanCoordinator
-    @State private var viewState: SmartScanState = .scanning
     @State private var showToast = false
     @State private var toastMessage = ""
 
@@ -19,7 +12,7 @@ struct SmartScanDashboardView: View {
         ZStack(alignment: .bottom) {
             // Main content
             Group {
-                switch viewState {
+                switch coordinator.viewState {
                 case .scanning:
                     ScanProgressView(progress: coordinator.progress)
                         .transition(.opacity)
@@ -33,7 +26,7 @@ struct SmartScanDashboardView: View {
                             ),
                             onFixAll: {
                                 withAnimation(.easeInOut(duration: 0.25)) {
-                                    viewState = .confirmingFixAll
+                                    coordinator.viewState = .confirmingFixAll
                                 }
                             }
                         )
@@ -56,7 +49,7 @@ struct SmartScanDashboardView: View {
                         ),
                         onCancel: {
                             withAnimation(.easeInOut(duration: 0.25)) {
-                                viewState = .results
+                                coordinator.viewState = .results
                             }
                         },
                         onConfirm: { selected in
@@ -66,7 +59,7 @@ struct SmartScanDashboardView: View {
                     .transition(.opacity)
                 }
             }
-            .animation(.easeInOut(duration: 0.25), value: viewState)
+            .animation(.easeInOut(duration: 0.25), value: coordinator.viewState)
 
             // Toast
             if showToast {
@@ -76,20 +69,22 @@ struct SmartScanDashboardView: View {
             }
         }
         .onAppear {
-            if coordinator.results != nil {
-                viewState = .results
-            } else {
-                viewState = .scanning
+            if coordinator.results == nil {
+                coordinator.viewState = .scanning
+            } else if coordinator.viewState == .scanning {
+                coordinator.viewState = .results
             }
             if let url = targetURL {
-                coordinator.startScan(at: url)
+                if coordinator.results == nil || coordinator.results?.scannedPath != url {
+                    coordinator.startScan(at: url)
+                }
             }
         }
         .onChangeCompat(of: coordinator.results) { results in
             guard results != nil else { return }
-            if viewState == .scanning {
+            if coordinator.viewState == .scanning {
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    viewState = .results
+                    coordinator.viewState = .results
                 }
             }
         }
@@ -101,7 +96,7 @@ struct SmartScanDashboardView: View {
         let urls = issues.flatMap(\.urls)
         guard !urls.isEmpty else { return }
 
-        withAnimation { viewState = .results }
+        withAnimation { coordinator.viewState = .results }
 
         do {
             // moveToTrash — НІКОЛИ removeItem

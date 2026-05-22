@@ -81,4 +81,24 @@ final class SmartScanCoordinatorTests: XCTestCase {
         }
         XCTAssertTrue(clusters.count >= 4 && clusters.count <= 15, "Expected clusters count between 4 and 15, got \(clusters.count)")
     }
+
+    func test_viewState_preservesConfirmingFixAllState() async throws {
+        let coordinator = SmartScanCoordinator()
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        coordinator.startScan(at: tmpDir)
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(coordinator.viewState, .results)
+
+        // Mutate state to confirmingFixAll
+        coordinator.viewState = .confirmingFixAll
+
+        // Call startScan on same directory, should hit cache and NOT overwrite viewState
+        coordinator.startScan(at: tmpDir)
+        XCTAssertEqual(coordinator.viewState, .confirmingFixAll)
+    }
 }
+

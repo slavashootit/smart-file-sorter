@@ -1,5 +1,11 @@
 import Foundation
 
+enum SmartScanState {
+    case scanning
+    case results
+    case confirmingFixAll
+}
+
 // Категорії за пріоритетом відображення
 enum ScanIssueCategory: Int, Comparable, CaseIterable {
     case cleanup = 0      // зелений — безпечно

@@ -7,6 +7,7 @@ final class SmartScanCoordinator: ObservableObject {
 
     @Published var progress = ScanProgress()
     @Published var results: ScanResults?
+    @Published var viewState: SmartScanState = .scanning
 
     private var scanTask: Task<Void, Never>?
 
@@ -18,8 +19,12 @@ final class SmartScanCoordinator: ObservableObject {
 
     func startScan(at url: URL) {
         if let last = lastScanDate, Date().timeIntervalSince(last) < cacheTTL, results != nil, results?.scannedPath == url {
+            if viewState == .scanning {
+                viewState = .results
+            }
             return
         }
+        viewState = .scanning
         results = nil
         progress = ScanProgress()
         scanTask?.cancel()
@@ -51,6 +56,7 @@ final class SmartScanCoordinator: ObservableObject {
         self.results = ScanResults(issues: sorted, scannedPath: url, scannedAt: .now)
         self.lastScanDate = .now
         self.progress.overallFraction = 1.0
+        self.viewState = .results
     }
 
     // ── Cleanup ──────────────────────────────────────────────
