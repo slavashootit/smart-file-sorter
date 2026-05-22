@@ -10,11 +10,14 @@ All notable changes to the **Smart File Sorter** project will be documented in t
 - **Redesigned SortingView** — Rebuilt the main sorting view into a 4-zone vertical stack: Zone A (`DropZoneView`), Zone B (`FilterBarView`), Zone C (Action / Progress row), and Zone D (`LastRunSummaryView`).
 - **Sidebar Consolidation** — Consolidated Duplicates, Similar Photos, and Cleanup under a single expandable `DisclosureGroup` titled "Прибирання" with trash icon, default-expanded, bound to `@AppStorage` for persistence.
 - **App Menu "About"** — Added standard macOS App Menu button "Про Smart File Sorter" to post a `"ShowAboutView"` notification that switches the view to the About tab.
+- **Polish Components** — Integrated `MagneticButton`, `Ripple`, `AnimatedNumber`, `BentoStat` sparklines, and `FilmGrain` overlay on `MeshBackground`.
 
 ### Changed
 - **Last Run Metrics** — Removed simulated duration; added Ukrainian relative timestamp (e.g., "сьогодні 14:23", "вчора 21:29") along with file count and source folder name.
 - **Disk Analyzer** — Removed the "NEW" badge from the sidebar link for "Аналізатор диска".
 - **About Tab Navigation** — Removed "Про програму" navigation link from the sidebar list entirely; it is now hidden and only reachable via the macOS App Menu.
+- **Design Discipline** — Unified accent color scheme across the application and charts (`DT.Color.accent` family), completely removing purple/pink ("AI-lila") colors.
+- **DropZoneView Path Formatting** — Fixed deep folder path representation bug, ensuring `~/` is preserved for home-relative deep paths.
 
 ---
 

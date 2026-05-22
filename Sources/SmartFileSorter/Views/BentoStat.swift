@@ -5,40 +5,31 @@ import Charts
 public struct AnimatedNumber: View {
     let value: Int
     let font: SwiftUI.Font
-    @State private var displayed: Int = 0
+    let color: Color
+    @State private var displayValue: Int = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    public init(value: Int, font: SwiftUI.Font = DT.Font.mono(22)) {
+    public init(value: Int, font: SwiftUI.Font = DT.Font.mono(22), color: Color = DT.Color.textPrimary) {
         self.value = value
         self.font = font
+        self.color = color
     }
 
     public var body: some View {
-        Text("\(displayed)")
+        Text("\(displayValue)")
             .font(font)
-            .foregroundColor(DT.Color.textPrimary)
-            .onAppear { animate() }
-            .onChange(of: value) { _ in animate() }
-    }
-
-    private func animate() {
-        guard !reduceMotion else {
-            displayed = value
-            return
-        }
-        let steps = 30
-        let duration = 1.2
-        let stepDelay = duration / Double(steps)
-        let target = value
-        let start = displayed
-
-        for i in 0...steps {
-            DispatchQueue.main.asyncAfter(deadline: .now() + stepDelay * Double(i)) {
-                let progress = Double(i) / Double(steps)
-                let eased = 1 - pow(1 - progress, 3) // easeOutCubic
-                displayed = start + Int(Double(target - start) * eased)
+            .foregroundColor(color)
+            .contentTransition(.numericText())
+            .onAppear { displayValue = value }
+            .onChange(of: value) { newVal in
+                if reduceMotion {
+                    displayValue = newVal
+                } else {
+                    withAnimation(DT.Animation.spring) {
+                        displayValue = newVal
+                    }
+                }
             }
-        }
     }
 }
 

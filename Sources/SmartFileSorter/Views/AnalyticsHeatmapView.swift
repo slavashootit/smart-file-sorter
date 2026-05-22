@@ -17,6 +17,13 @@ struct AnalyticsHeatmapView: View {
         18: 2
     ]
     
+    @State private var totalSorted: Int = 0
+    @State private var totalSessions: Int = 0
+    @State private var totalBytesOrganized: Int64 = 0
+    @State private var sortedTrend: [Double] = []
+    @State private var sessionsTrend: [Double] = []
+    @State private var bytesTrend: [Double] = []
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -29,6 +36,32 @@ struct AnalyticsHeatmapView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top)
+                
+                // Bento Stats Row
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                    BentoStat(
+                        label: "Впорядковано файлів",
+                        value: totalSorted,
+                        trend: sortedTrend,
+                        tint: DT.Color.accent
+                    )
+                    
+                    BentoStat(
+                        label: "Загальний об'єм",
+                        value: Int(totalBytesOrganized),
+                        formattedValue: formatBytes(totalBytesOrganized),
+                        trend: bytesTrend,
+                        tint: DT.Color.accentStrong
+                    )
+                    
+                    BentoStat(
+                        label: "Кількість сесій",
+                        value: totalSessions,
+                        trend: sessionsTrend,
+                        tint: DT.Color.success
+                    )
+                }
+                .padding(.horizontal)
                 
                 // Row 1: Source Domain Domains & Heatmap
                 HStack(alignment: .top, spacing: 16) {
@@ -137,7 +170,7 @@ struct AnalyticsHeatmapView: View {
                                 }
                             }
                         }
-                        .stroke(Color.purple, lineWidth: 3)
+                        .stroke(DT.Color.accent, lineWidth: 3)
                         
                         // Add dots
                         let stepX = geo.size.width / CGFloat(points.count - 1)
@@ -147,7 +180,7 @@ struct AnalyticsHeatmapView: View {
                             let y = geo.size.height - (CGFloat(val / maxValue) * (geo.size.height - 20))
                             
                             Circle()
-                               .fill(Color.purple)
+                               .fill(DT.Color.accent)
                                .frame(width: 8, height: 8)
                                .position(x: x, y: y)
                         }
@@ -168,7 +201,18 @@ struct AnalyticsHeatmapView: View {
     private func recalculateAnalytics() async {
         let batches = historyManager.getBatches()
         
-        let result = await Task.detached(priority: .userInitiated) { () -> ([(String, Int)], [Int: Int]) in
+        struct AnalyticsResult {
+            let topDomains: [(String, Int)]
+            let activityHeatmap: [Int: Int]
+            let totalSorted: Int
+            let totalSessions: Int
+            let totalBytesOrganized: Int64
+            let sortedTrend: [Double]
+            let sessionsTrend: [Double]
+            let bytesTrend: [Double]
+        }
+        
+        let result = await Task.detached(priority: .userInitiated) { () -> AnalyticsResult in
             var domainCounts: [String: Int] = [:]
             
             for batch in batches {
@@ -204,12 +248,35 @@ struct AnalyticsHeatmapView: View {
                 heatmap[18] = 2
             }
             
-            return (sortedDomains, heatmap)
+            let totalSorted = batches.reduce(0) { $0 + $1.operations.count }
+            let totalSessions = batches.count
+            let totalBytes = batches.reduce(0) { $0 + $1.operations.reduce(0) { $0 + $1.fileSize } }
+            
+            let sTrend = batches.suffix(10).map { Double($0.operations.count) }
+            let bTrend = batches.suffix(10).map { Double($0.operations.reduce(0) { $0 + $1.fileSize }) }
+            let cTrend = batches.suffix(10).map { Double($0.createdDirs.count) }
+            
+            return AnalyticsResult(
+                topDomains: sortedDomains,
+                activityHeatmap: heatmap,
+                totalSorted: totalSorted,
+                totalSessions: totalSessions,
+                totalBytesOrganized: totalBytes,
+                sortedTrend: sTrend,
+                sessionsTrend: cTrend,
+                bytesTrend: bTrend
+            )
         }.value
         
         await MainActor.run {
-            self.topDomains = result.0
-            self.activityHeatmap = result.1
+            self.topDomains = result.topDomains
+            self.activityHeatmap = result.activityHeatmap
+            self.totalSorted = result.totalSorted
+            self.totalSessions = result.totalSessions
+            self.totalBytesOrganized = result.totalBytesOrganized
+            self.sortedTrend = result.sortedTrend
+            self.sessionsTrend = result.sessionsTrend
+            self.bytesTrend = result.bytesTrend
         }
     }
     
@@ -229,16 +296,23 @@ struct AnalyticsHeatmapView: View {
         if count == 0 {
             return Color.primary.opacity(0.04)
         } else if count < 2 {
-            return Color.purple.opacity(0.3)
+            return DT.Color.accent.opacity(0.3)
         } else if count < 4 {
-            return Color.purple.opacity(0.6)
+            return DT.Color.accent.opacity(0.6)
         } else {
-            return Color.purple
+            return DT.Color.accent
         }
     }
     
     private func getGrowthPoints() -> [Double] {
         // Mock size values over 30 days representing folder growth
         return [2.1, 2.3, 2.2, 2.5, 2.8, 2.7, 3.1, 3.4] // GB
+    }
+    
+    private func formatBytes(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: bytes)
     }
 }
