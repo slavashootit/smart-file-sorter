@@ -24,7 +24,7 @@ struct SmartScanDashboardView: View {
                     ScanProgressView(progress: coordinator.progress)
                         .transition(.opacity)
 
-                case .results, .confirmingFixAll:
+                case .results:
                     if let results = coordinator.results {
                         ScanResultsView(
                             results: Binding(
@@ -39,6 +39,31 @@ struct SmartScanDashboardView: View {
                         )
                         .transition(.opacity)
                     }
+
+                case .confirmingFixAll:
+                    FixAllInlineView(
+                        issues: Binding(
+                            get: { coordinator.results?.issues ?? [] },
+                            set: { newIssues in
+                                if let r = coordinator.results {
+                                    coordinator.results = ScanResults(
+                                        issues: newIssues,
+                                        scannedPath: r.scannedPath,
+                                        scannedAt: r.scannedAt
+                                    )
+                                }
+                            }
+                        ),
+                        onCancel: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                viewState = .results
+                            }
+                        },
+                        onConfirm: { selected in
+                            Task { await performFixAll(issues: selected) }
+                        }
+                    )
+                    .transition(.opacity)
                 }
             }
             .animation(.easeInOut(duration: 0.25), value: viewState)
@@ -49,50 +74,6 @@ struct SmartScanDashboardView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .padding(.bottom, 16)
             }
-        }
-        .sheet(isPresented: Binding(
-            get: { viewState == .confirmingFixAll && coordinator.results != nil },
-            set: { isPresented in
-                if !isPresented {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        viewState = .results
-                    }
-                }
-            }
-        )) {
-            FixAllSheetView(
-                issues: Binding(
-                    get: { coordinator.results?.issues ?? [] },
-                    set: { newIssues in
-                        if let r = coordinator.results {
-                            coordinator.results = ScanResults(
-                                issues: newIssues,
-                                scannedPath: r.scannedPath,
-                                scannedAt: r.scannedAt
-                            )
-                        }
-                    }
-                ),
-                isPresented: Binding(
-                    get: { viewState == .confirmingFixAll },
-                    set: { isPresented in
-                        if !isPresented {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                viewState = .results
-                            }
-                        }
-                    }
-                ),
-                onCancel: {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        viewState = .results
-                    }
-                },
-                onConfirm: { selected in
-                    Task { await performFixAll(issues: selected) }
-                }
-            )
-            .frame(minWidth: 600, minHeight: 500)
         }
         .onAppear {
             if coordinator.results != nil {

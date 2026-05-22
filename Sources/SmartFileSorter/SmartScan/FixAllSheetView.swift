@@ -1,8 +1,7 @@
 import SwiftUI
 
-struct FixAllSheetView: View {
+struct FixAllInlineView: View {
     @Binding var issues: [ScanIssue]
-    @Binding var isPresented: Bool
     let onCancel: () -> Void
     let onConfirm: ([ScanIssue]) -> Void
 
@@ -11,12 +10,6 @@ struct FixAllSheetView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Handle
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.white.opacity(0.2))
-                .frame(width: 36, height: 4)
-                .padding(.top, 10)
-
             // Header
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -29,14 +22,6 @@ struct FixAllSheetView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                Button {
-                    isPresented = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .font(.title3)
-                }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
