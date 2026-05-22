@@ -31,6 +31,29 @@ final class SmartScanCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.results?.scannedAt, firstResults?.scannedAt)
     }
 
+    func test_cacheTTL_bypassedIfDirectoryChanges() async throws {
+        let coordinator = SmartScanCoordinator()
+        let tmpDir1 = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let tmpDir2 = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir1, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: tmpDir2, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: tmpDir1)
+            try? FileManager.default.removeItem(at: tmpDir2)
+        }
+
+        coordinator.startScan(at: tmpDir1)
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(coordinator.results?.scannedPath, tmpDir1)
+
+        // Second scan with different path — should not reuse cache
+        coordinator.startScan(at: tmpDir2)
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(coordinator.results?.scannedPath, tmpDir2)
+    }
+
     func test_similarPhoto_issues_areUnchecked() async throws {
         // Verify that issues with category .similarPhoto default to isSelected = false
         let issue = ScanIssue(id: UUID(), category: .similarPhoto,

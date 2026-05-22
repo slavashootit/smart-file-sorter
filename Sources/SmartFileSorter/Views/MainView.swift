@@ -168,7 +168,10 @@ struct MainView: View {
                     
                     switch selectedTab {
                     case "smartScan":
-                        SmartScanDashboardView(coordinator: smartScanCoordinator, targetURL: defaultScanURL)
+                        SmartScanDashboardView(
+                            coordinator: smartScanCoordinator,
+                            targetURL: folderPath.isEmpty ? nil : URL(fileURLWithPath: folderPath)
+                        )
                     case "sort":
                         sortTab
                     case "diskMap":
@@ -253,7 +256,12 @@ struct MainView: View {
         }
         .onAppear {
             syncCategories()
-            smartScanCoordinator.startScan(at: defaultScanURL)
+        }
+        .onChangeCompat(of: folderPath) { newPath in
+            if !newPath.isEmpty {
+                let url = URL(fileURLWithPath: newPath)
+                smartScanCoordinator.startScan(at: url)
+            }
         }
         .onChangeCompat(of: smartScanCoordinator.results) { results in
             if let results {

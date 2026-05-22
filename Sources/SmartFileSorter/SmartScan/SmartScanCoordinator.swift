@@ -17,8 +17,7 @@ final class SmartScanCoordinator: ObservableObject {
     public init() {}
 
     func startScan(at url: URL) {
-        // Якщо кеш свіжий — пропускаємо ресканування
-        if let last = lastScanDate, Date().timeIntervalSince(last) < cacheTTL, results != nil {
+        if let last = lastScanDate, Date().timeIntervalSince(last) < cacheTTL, results != nil, results?.scannedPath == url {
             return
         }
         results = nil

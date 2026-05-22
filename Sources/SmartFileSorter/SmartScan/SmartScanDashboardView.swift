@@ -13,7 +13,7 @@ struct SmartScanDashboardView: View {
     @State private var toastMessage = ""
 
     // Папка що сканується — передається при відкритті
-    let targetURL: URL
+    let targetURL: URL?
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -91,7 +91,9 @@ struct SmartScanDashboardView: View {
             } else {
                 viewState = .scanning
             }
-            coordinator.startScan(at: targetURL)
+            if let url = targetURL {
+                coordinator.startScan(at: url)
+            }
         }
         .onChangeCompat(of: coordinator.results) { results in
             guard results != nil else { return }
