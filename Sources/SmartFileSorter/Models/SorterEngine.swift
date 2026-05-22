@@ -621,3 +621,12 @@ public class SorterEngine {
         return HistoryManager.shared.checkHistoryExists()
     }
 }
+
+extension SorterEngine {
+    public func moveToTrash(_ urls: [URL]) async throws {
+        for url in urls {
+            try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+        }
+    }
+}
+

@@ -368,3 +368,14 @@ public final class DuplicateFinder: ObservableObject, @unchecked Sendable {
         return ConfigManager.shared.shouldExclude(url: URL(fileURLWithPath: path))
     }
 }
+
+extension DuplicateFinder {
+    public func findDuplicates(in url: URL) async -> [DuplicateGroup] {
+        await withCheckedContinuation { continuation in
+            self.scan(at: url.path) {
+                continuation.resume(returning: self.duplicateGroups)
+            }
+        }
+    }
+}
+

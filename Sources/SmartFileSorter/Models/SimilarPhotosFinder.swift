@@ -185,3 +185,36 @@ public final class SimilarPhotosFinder: ObservableObject {
         }
     }
 }
+
+public struct SimilarPhotosCluster: Sendable {
+    public let label: String
+    public let photos: [URL]
+    public let minSimilarity: Double
+    
+    public init(label: String, photos: [URL], minSimilarity: Double) {
+        self.label = label
+        self.photos = photos
+        self.minSimilarity = minSimilarity
+    }
+}
+
+public final class SimilarPhotosEngine: @unchecked Sendable {
+    public init() {}
+    
+    public func findClusters(in url: URL) async -> [SimilarPhotosCluster] {
+        let finder = SimilarPhotosFinder()
+        return await withCheckedContinuation { continuation in
+            finder.scan(at: url.path, threshold: 0.15) {
+                let clusters = finder.similarGroups.enumerated().map { (index, group) in
+                    SimilarPhotosCluster(
+                        label: "Група \(index + 1)",
+                        photos: group.photos,
+                        minSimilarity: 0.85
+                    )
+                }
+                continuation.resume(returning: clusters)
+            }
+        }
+    }
+}
+
