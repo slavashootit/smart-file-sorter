@@ -5,6 +5,7 @@ import Combine
 struct MainView: View {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @ObservedObject var duplicateFinder = DuplicateFinder.shared
+    @ObservedObject var smartScanCoordinator = SmartScanCoordinator.shared
     
     @State private var selectedTab: String = "sort"
     @State private var folderPath: String = ""
@@ -51,6 +52,19 @@ struct MainView: View {
             NavigationSplitView {
                 List(selection: $selectedTab) {
                     Section(header: Text("Навігація").padding(.leading, 6)) {
+                        if (smartScanCoordinator.results?.issueCount ?? 0) > 0 {
+                            NavigationLink(value: "smartScan") {
+                                HStack {
+                                    Label("Smart Scan", systemImage: "clock.arrow.circlepath")
+                                    Spacer()
+                                    NavBadge(smartScanCoordinator.results?.issueCount ?? 0)
+                                }
+                                .contentShape(Rectangle())
+                                .spotlightHover()
+                            }
+                            .help("Швидкий огляд знайдених проблем")
+                        }
+
                         NavigationLink(value: "sort") {
                             HStack {
                                 Label("Сортування", systemImage: "folder.badge.gearshape")
@@ -153,6 +167,8 @@ struct MainView: View {
                     VisualEffectView(material: .underWindowBackground, blendingMode: .withinWindow)
                     
                     switch selectedTab {
+                    case "smartScan":
+                        SmartScanDashboardView(coordinator: smartScanCoordinator, targetURL: defaultScanURL)
                     case "sort":
                         sortTab
                     case "diskMap":
@@ -237,6 +253,16 @@ struct MainView: View {
         }
         .onAppear {
             syncCategories()
+            smartScanCoordinator.startScan(at: defaultScanURL)
+        }
+        .onChange(of: smartScanCoordinator.results) { results in
+            if let results {
+                if results.issueCount > 0 {
+                    selectedTab = "smartScan"
+                } else {
+                    selectedTab = "sort"
+                }
+            }
         }
     }
     
@@ -327,6 +353,11 @@ struct MainView: View {
         .padding()
     }
     
+    private var defaultScanURL: URL {
+        FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first 
+            ?? URL(fileURLWithPath: NSHomeDirectory() + "/Downloads")
+    }
+
     // Вибір папки діалогом macOS
     private var openPanel: NSOpenPanel {
         let panel = NSOpenPanel()
