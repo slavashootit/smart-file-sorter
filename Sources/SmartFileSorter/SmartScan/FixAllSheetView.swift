@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FixAllSheetView: View {
     @Binding var issues: [ScanIssue]
+    @Binding var isPresented: Bool
     let onCancel: () -> Void
     let onConfirm: ([ScanIssue]) -> Void
 
@@ -17,16 +18,26 @@ struct FixAllSheetView: View {
                 .padding(.top, 10)
 
             // Header
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Що перемістити в Кошик?")
-                    .font(DT.subheadFont).bold()
-                    .foregroundStyle(DT.label)
-                Text("Зніми галочку — і файл залишиться. Дія незворотна лише після спустошення Кошика.")
-                    .font(DT.captionFont)
-                    .foregroundStyle(DT.label2)
-                    .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Що перемістити в Кошик?")
+                        .font(DT.subheadFont).bold()
+                        .foregroundStyle(DT.label)
+                    Text("Зніми галочку — і файл залишиться. Дія незворотна лише після спустошення Кошика.")
+                        .font(DT.captionFont)
+                        .foregroundStyle(DT.label2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Button {
+                    isPresented = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
             .padding(.vertical, 14)
 

@@ -47,13 +47,6 @@ struct SmartScanDashboardView: View {
             if viewState == .confirmingFixAll, coordinator.results != nil {
                 Color.black.opacity(0.5)
                     .ignoresSafeArea()
-                    .simultaneousGesture(
-                        TapGesture().onEnded {
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                viewState = .results
-                            }
-                        }
-                    )
 
                 FixAllSheetView(
                     issues: Binding(
@@ -66,6 +59,16 @@ struct SmartScanDashboardView: View {
                                     scannedPath: r.scannedPath,
                                     scannedAt: r.scannedAt
                                 )
+                            }
+                        }
+                    ),
+                    isPresented: Binding(
+                        get: { viewState == .confirmingFixAll },
+                        set: { isPresented in
+                            if !isPresented {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    viewState = .results
+                                }
                             }
                         }
                     ),
