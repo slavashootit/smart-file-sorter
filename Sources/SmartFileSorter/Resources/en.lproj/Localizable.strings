@@ -17,8 +17,8 @@
 "logPlannedDir" = "[PLANNED] Folder '%@' -> to '%@'";
 "logDuplicate" = "[DUPLICATE] '%@' is a copy of '%@' -> '%@'";
 
-"automationTemplates" = "Templates";
-"templatesSubtitle" = "Ready-to-use rule configurations for standard workflows.";
+"automationTemplates" = "Rules";
+"templatesSubtitle" = "Manage active sorting rules and use pre-built templates.";
 "prebuiltTemplates" = "Pre-built Rule Packs";
 "ruleSharing" = "Import & Export Rules";
 "importRuleBtn" = "Import Sorter Rule (.sorterrule)...";

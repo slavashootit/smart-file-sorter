@@ -109,13 +109,13 @@ struct MainView: View {
                         
                         NavigationLink(value: "templates") {
                             HStack {
-                                Label(NSLocalizedString("automationTemplates", comment: ""), systemImage: "square.grid.3x3")
+                                Label(NSLocalizedString("automationTemplates", comment: ""), systemImage: "list.bullet.rectangle.portrait")
                                 Spacer()
                             }
                             .contentShape(Rectangle())
                             .spotlightHover()
                         }
-                        .help("Готові шаблони правил автоматичного сортування для швидкого старту")
+                        .help("Керування правилами сортування та використання шаблонів")
                         
                         NavigationLink(value: "analytics") {
                             HStack {
