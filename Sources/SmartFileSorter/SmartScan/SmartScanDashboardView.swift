@@ -25,7 +25,7 @@ struct SmartScanDashboardView: View {
                         .transition(.opacity)
 
                 case .results, .confirmingFixAll:
-                    if var results = coordinator.results {
+                    if let results = coordinator.results {
                         ScanResultsView(
                             results: Binding(
                                 get: { coordinator.results ?? results },
@@ -57,7 +57,7 @@ struct SmartScanDashboardView: View {
                     issues: Binding(
                         get: { coordinator.results?.issues ?? [] },
                         set: { newIssues in
-                            if var r = coordinator.results {
+                            if let r = coordinator.results {
                                 // rebuild results with updated isSelected
                                 coordinator.results = ScanResults(
                                     issues: newIssues,
@@ -114,7 +114,7 @@ struct SmartScanDashboardView: View {
 
             // Оновлюємо results — прибираємо виконані issues
             let doneIDs = Set(issues.map(\.id))
-            if var r = coordinator.results {
+            if let r = coordinator.results {
                 coordinator.results = ScanResults(
                     issues: r.issues.filter { !doneIDs.contains($0.id) },
                     scannedPath: r.scannedPath,
