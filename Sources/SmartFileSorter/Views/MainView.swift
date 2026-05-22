@@ -6,9 +6,11 @@ struct MainView: View {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @ObservedObject var duplicateFinder = DuplicateFinder.shared
     @ObservedObject var smartScanCoordinator = SmartScanCoordinator.shared
+    @ObservedObject var favoriteManager = FavoriteFoldersManager.shared
     
     @State private var selectedTab: String = "sort"
     @State private var folderPath: String = ""
+    @State private var showFolderPicker = true
     @State private var sortMode: SortMode = .type
     @State private var detectDuplicates: Bool = false
     @State private var logs: [String] = []
@@ -168,10 +170,21 @@ struct MainView: View {
                     
                     switch selectedTab {
                     case "smartScan":
-                        SmartScanDashboardView(
-                            coordinator: smartScanCoordinator,
-                            targetURL: folderPath.isEmpty ? nil : URL(fileURLWithPath: folderPath)
-                        )
+                        ZStack {
+                            SmartScanDashboardView(
+                                coordinator: smartScanCoordinator,
+                                targetURL: nil
+                            )
+                            
+                            if showFolderPicker {
+                                FolderPickerView(
+                                    coordinator: smartScanCoordinator,
+                                    showFolderPicker: $showFolderPicker,
+                                    selectedTab: $selectedTab
+                                )
+                                .transition(.opacity)
+                            }
+                        }
                     case "sort":
                         sortTab
                     case "diskMap":
@@ -272,6 +285,11 @@ struct MainView: View {
                 }
             }
         }
+        .onChangeCompat(of: selectedTab) { newTab in
+            if newTab == "smartScan" {
+                showFolderPicker = true
+            }
+        }
     }
     
     // Вкладка Сортування
@@ -329,6 +347,49 @@ struct MainView: View {
                 }
                 Button("Редагувати категорії файлів...") {
                     showCategoriesEditor = true
+                }
+            }
+            
+            Section(header: Text("Улюблені папки (Smart Scan)")) {
+                if favoriteManager.favorites.isEmpty {
+                    Text("Немає улюблених папок")
+                        .foregroundColor(.secondary)
+                        .font(DT.captionFont)
+                } else {
+                    ForEach(favoriteManager.favorites, id: \.path) { folder in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(folder.displayName)
+                                    .font(.system(size: 13, weight: .medium))
+                                Text(folder.path)
+                                    .font(DT.captionFont)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Button(action: {
+                                favoriteManager.removeFavorite(path: folder.path)
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Видалити з улюблених")
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+                
+                Button("Додати папку...") {
+                    let panel = NSOpenPanel()
+                    panel.allowsMultipleSelection = false
+                    panel.canChooseDirectories = true
+                    panel.canChooseFiles = false
+                    panel.canCreateDirectories = true
+                    panel.begin { response in
+                        if response == .OK, let url = panel.url {
+                            favoriteManager.addFavorite(path: url.path)
+                        }
+                    }
                 }
             }
         }
