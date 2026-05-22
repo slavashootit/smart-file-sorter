@@ -34,23 +34,24 @@ final class SmartScanCoordinator: ObservableObject {
 
     private func runScan(at url: URL) async {
         // Три кроки паралельно через TaskGroup
-        await withTaskGroup(of: [ScanIssue].self) { group in
+        let allIssues = await withTaskGroup(of: [ScanIssue].self) { group in
             group.addTask { await self.runCleanup(at: url) }
             group.addTask { await self.runDuplicates(at: url) }
             group.addTask { await self.runSimilarPhotos(at: url) }
 
-            var allIssues: [ScanIssue] = []
+            var collected: [ScanIssue] = []
             for await issues in group {
-                allIssues.append(contentsOf: issues)
+                collected.append(contentsOf: issues)
             }
-
-            guard !Task.isCancelled else { return }
-
-            let sorted = allIssues.sorted { $0.category < $1.category }
-            self.results = ScanResults(issues: sorted, scannedPath: url, scannedAt: .now)
-            self.lastScanDate = .now
-            self.progress.overallFraction = 1.0
+            return collected
         }
+
+        guard !Task.isCancelled else { return }
+
+        let sorted = allIssues.sorted { $0.category < $1.category }
+        self.results = ScanResults(issues: sorted, scannedPath: url, scannedAt: .now)
+        self.lastScanDate = .now
+        self.progress.overallFraction = 1.0
     }
 
     // ── Cleanup ──────────────────────────────────────────────

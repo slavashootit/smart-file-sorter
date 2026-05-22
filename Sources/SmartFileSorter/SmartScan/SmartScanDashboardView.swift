@@ -86,6 +86,11 @@ struct SmartScanDashboardView: View {
             }
         }
         .onAppear {
+            if coordinator.results != nil {
+                viewState = .results
+            } else {
+                viewState = .scanning
+            }
             coordinator.startScan(at: targetURL)
         }
         .onChangeCompat(of: coordinator.results) { results in
