@@ -255,7 +255,7 @@ struct MainView: View {
             syncCategories()
             smartScanCoordinator.startScan(at: defaultScanURL)
         }
-        .onChange(of: smartScanCoordinator.results) { results in
+        .onChangeCompat(of: smartScanCoordinator.results) { results in
             if let results {
                 if results.issueCount > 0 {
                     selectedTab = "smartScan"

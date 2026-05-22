@@ -88,9 +88,10 @@ struct SmartScanDashboardView: View {
         .onAppear {
             coordinator.startScan(at: targetURL)
         }
-        .onChange(of: coordinator.results) { results in
-            if results != nil {
-                withAnimation(.easeInOut(duration: 0.25)) { viewState = .results }
+        .onChangeCompat(of: coordinator.results) { results in
+            guard results != nil else { return }
+            withAnimation(.easeInOut(duration: 0.25)) {
+                viewState = .results
             }
         }
     }
