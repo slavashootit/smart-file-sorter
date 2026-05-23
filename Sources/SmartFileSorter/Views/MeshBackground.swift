@@ -20,7 +20,7 @@ public struct MeshBackground: View {
             .ignoresSafeArea()
         } else {
             ZStack {
-                TimelineView(.animation) { timeline in
+                TimelineView(.periodic(from: .now, by: 1.0/10.0)) { timeline in
                     let time = timeline.date.timeIntervalSinceReferenceDate
                     
                     Canvas { context, size in
@@ -54,7 +54,8 @@ public struct MeshBackground: View {
                             with: .color(DT.Color.accentStrong.opacity(0.05))
                         )
                     }
-                    .blur(radius: 80)
+                    .drawingGroup()
+                    .blur(radius: 40)
                     .ignoresSafeArea()
                 }
                 
