@@ -270,21 +270,6 @@ struct MainView: View {
         .onAppear {
             syncCategories()
         }
-        .onChangeCompat(of: folderPath) { newPath in
-            if !newPath.isEmpty {
-                let url = URL(fileURLWithPath: newPath)
-                smartScanCoordinator.startScan(at: url)
-            }
-        }
-        .onChangeCompat(of: smartScanCoordinator.results) { results in
-            if let results {
-                if results.issueCount > 0 {
-                    selectedTab = "smartScan"
-                } else {
-                    selectedTab = "sort"
-                }
-            }
-        }
         .onChangeCompat(of: selectedTab) { newTab in
             if newTab == "smartScan" && smartScanCoordinator.results == nil {
                 showFolderPicker = true
