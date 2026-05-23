@@ -10,7 +10,7 @@ struct MainView: View {
     
     @State private var selectedTab: String = "sort"
     @State private var folderPath: String = ""
-    @State private var showFolderPicker = true
+    @State private var showFolderPicker = false
     @State private var sortMode: SortMode = .type
     @State private var detectDuplicates: Bool = false
     @State private var logs: [String] = []
@@ -286,7 +286,7 @@ struct MainView: View {
             }
         }
         .onChangeCompat(of: selectedTab) { newTab in
-            if newTab == "smartScan" {
+            if newTab == "smartScan" && smartScanCoordinator.results == nil {
                 showFolderPicker = true
             }
         }
