@@ -296,19 +296,7 @@ struct MainView: View {
     private var sortTab: some View {
         SortingView(
             folderPath: $folderPath,
-            sortMode: $sortMode,
-            enabledCategories: $enabledCategories,
-            detectDuplicates: $detectDuplicates,
-            isSorting: isSorting,
-            processedCount: processedCount,
-            totalCount: totalCount,
-            currentItem: currentItem,
-            logs: logs,
-            currentStatus: currentStatus,
-            selectedTab: $selectedTab,
-            runSorting: { dryRun in runSorting(dryRun: dryRun) },
-            cancelSorting: { sortingTask?.cancel() },
-            undoSorting: { undoSorting() }
+            selectedTab: $selectedTab
         )
     }
     

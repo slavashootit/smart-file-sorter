@@ -58,6 +58,11 @@ public enum DT {  // Design Tokens — коротко, бо використов
         public static let successSoft   = SwiftUI.Color(hex: "#34d399").opacity(0.10)
         public static let warning       = SwiftUI.Color(hex: "#fbbf24")
         public static let danger        = SwiftUI.Color(hex: "#f87171")
+        
+        // Category Chips / Info Semantic
+        public static let backgroundInfo      = SwiftUI.Color(hex: "#3b82f6").opacity(0.12)
+        public static let textInfo            = SwiftUI.Color(hex: "#60a5fa")
+        public static let backgroundSecondary = SwiftUI.Color.white.opacity(0.06)
     }
 
     public enum Radius {
