@@ -1,6 +1,30 @@
 import Foundation
 import AppKit
 
+public struct SortGroup: Identifiable, Equatable {
+    public let id: UUID
+    public let category: String
+    public let destination: URL
+    public let files: [URL]
+    public var isEnabled: Bool
+    
+    public init(id: UUID = UUID(), category: String, destination: URL, files: [URL], isEnabled: Bool = true) {
+        self.id = id
+        self.category = category
+        self.destination = destination
+        self.files = files
+        self.isEnabled = isEnabled
+    }
+}
+
+public enum SortingViewState: Equatable {
+    case idle
+    case analysing
+    case preview(groups: [SortGroup])
+    case sorting
+    case done(moved: Int)
+}
+
 public enum SortMode: String, Codable {
     case type
     case date
@@ -49,6 +73,16 @@ public struct SortProgress: Sendable {
 public class SorterEngine {
     
     public static let shared = SorterEngine()
+    
+    public static let defaultCategories: [(id: String, label: String, icon: String, extensions: Set<String>)] = [
+        ("photos",    "Фото",      "photo",         ["jpg","jpeg","png","heic","webp","gif","tiff","raw","cr2","nef"]),
+        ("video",     "Відео",     "video",         ["mp4","mov","avi","mkv","m4v","wmv","flv"]),
+        ("audio",     "Аудіо",     "music",         ["mp3","wav","flac","aac","m4a","ogg","aiff"]),
+        ("documents", "Документи", "file-type-pdf", ["pdf","doc","docx","xls","xlsx","ppt","pptx","txt","pages","numbers","key"]),
+        ("archives",  "Архіви",    "zip",           ["zip","rar","7z","tar","gz","dmg","pkg"]),
+        ("code",      "Код",       "code",          ["swift","py","js","ts","html","css","json","xml","sh","rb"]),
+        ("other",     "Інше",      "dots",          [])  // fallback
+    ]
     
     public init() {}
     
@@ -627,6 +661,125 @@ extension SorterEngine {
         for url in urls {
             try FileManager.default.trashItem(at: url, resultingItemURL: nil)
         }
+    }
+    
+    public func preview(url: URL, categories: Set<String>) async -> [SortGroup] {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: url.path) else { return [] }
+        
+        var files: [URL] = []
+        var dirs: [URL] = []
+        
+        do {
+            let contents = try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: [])
+            for item in contents {
+                if item.lastPathComponent.hasPrefix(".") {
+                    continue
+                }
+                var isDirVal: AnyObject?
+                try? (item as NSURL).getResourceValue(&isDirVal, forKey: .isDirectoryKey)
+                let isDir = (isDirVal as? NSNumber)?.boolValue ?? false
+                
+                if isDir {
+                    if !self.isExcludedDir(item) {
+                        dirs.append(item)
+                    }
+                } else {
+                    files.append(item)
+                }
+            }
+        } catch {
+            return []
+        }
+        
+        // Group by category ID
+        var groupMap: [String: [URL]] = [:]
+        
+        // Helper to resolve category for file
+        func resolveCategory(for fileURL: URL) -> (id: String, label: String) {
+            let ext = fileURL.pathExtension.lowercased()
+            for cat in SorterEngine.defaultCategories {
+                if cat.id != "other" && cat.extensions.contains(ext) {
+                    return (cat.id, cat.label)
+                }
+            }
+            return ("other", "Інше")
+        }
+        
+        // Helper to resolve clean directory category
+        func resolveCleanDirectory(dirURL: URL) -> (id: String, label: String)? {
+            var allFiles: [URL] = []
+            let enumerator = fileManager.enumerator(
+                at: dirURL,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            )
+            guard let enumObj = enumerator else { return nil }
+            for case let fileURL as URL in enumObj {
+                guard let resourceValues = try? fileURL.resourceValues(forKeys: [.isDirectoryKey]),
+                      let isDir = resourceValues.isDirectory, !isDir else {
+                    continue
+                }
+                if fileURL.lastPathComponent.hasPrefix(".") {
+                    continue
+                }
+                allFiles.append(fileURL)
+            }
+            if allFiles.isEmpty { return nil }
+            var firstCatId: String? = nil
+            var firstCatLabel: String? = nil
+            for fileURL in allFiles {
+                let (catId, catLabel) = resolveCategory(for: fileURL)
+                if firstCatId == nil {
+                    firstCatId = catId
+                    firstCatLabel = catLabel
+                } else if firstCatId != catId {
+                    return nil
+                }
+            }
+            if let id = firstCatId, let label = firstCatLabel {
+                return (id, label)
+            }
+            return nil
+        }
+        
+        // Process directories
+        for dirURL in dirs {
+            if let (catId, _) = resolveCleanDirectory(dirURL: dirURL) {
+                if categories.contains(catId) {
+                    groupMap[catId, default: []].append(dirURL)
+                }
+            }
+        }
+        
+        // Process files
+        for fileURL in files {
+            let (catId, _) = resolveCategory(for: fileURL)
+            if categories.contains(catId) {
+                groupMap[catId, default: []].append(fileURL)
+            }
+        }
+        
+        // Sort individual lists of files alphabetically to be predictable and clean
+        for catId in groupMap.keys {
+            groupMap[catId]?.sort { $0.lastPathComponent.localizedCompare($1.lastPathComponent) == .orderedAscending }
+        }
+        
+        // Map groups to [SortGroup] in the exact order of defaultCategories
+        var resultGroups: [SortGroup] = []
+        for cat in SorterEngine.defaultCategories {
+            if let groupFiles = groupMap[cat.id], !groupFiles.isEmpty {
+                let destination = url.appendingPathComponent(cat.label)
+                resultGroups.append(SortGroup(
+                    category: cat.label,
+                    destination: destination,
+                    files: groupFiles,
+                    isEnabled: true
+                ))
+            }
+        }
+        
+        return resultGroups
     }
 }
 
